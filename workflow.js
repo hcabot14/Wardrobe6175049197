@@ -1,6 +1,6 @@
 /* Subscription workflow: no model API calls. Existing records and sync stay intact. */
 'use strict';
-const APP_RELEASE='29';
+const APP_RELEASE='30';
 // Use the website entry point rather than an undocumented native-app URL.
 function chatGPTLinks(){
  return '<a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Open ChatGPT</a>';
@@ -133,10 +133,10 @@ function copyRequestPanel(t,out,files){
  const text=connectedRequest(t),preparedAt=t.handoff.preparedAt,faceVersion=faceSignature();
  const fresh=()=>{if(faceSignature()!==faceVersion||snapshotId()!==t.snapshotId||trips.find(x=>x.id===t.id)?.handoff?.preparedAt!==preparedAt)throw new Error('The wardrobe or request changed. Tap Continue to prepare fresh photos.');};
  const packet=[new File([text],'Start-here.txt',{type:'text/plain'}),...files];
- const shareable=!!(navigator.canShare&&navigator.canShare({files:packet}));
- out.innerHTML=`<p class="muted sm">Your trip and photos are ready.</p><button class="primary" data-sendtrip>${shareable?'Send to ChatGPT':'Download trip packet'}</button><p class="muted sm">${shareable?'Choose ChatGPT and send everything in a new chat.':'Unzip the packet. In a new Wardrobe App chat, attach all files and send “Follow Start-here.txt.”'}</p><div data-copyresult class="msg" role="status"></div><details><summary>Other options</summary><div class="row"><button data-copytrip>Copy request</button><button data-downloadphotos>Download packet</button>${chatGPTLinks()}<button data-checkplan>Check for finished lookbook</button></div><button data-filefallback>Prepare for Claude or another chat</button><div data-fallbackout></div></details>`;
+ const shareable=!!(navigator.canShare&&navigator.canShare({files}));
+ out.innerHTML=`<p class="muted sm">Your trip and photos are ready.</p><button class="primary" data-sendtrip>${shareable?'Share with ChatGPT':'Download trip packet'}</button><p class="muted sm">${shareable?'Choose ChatGPT in the share sheet. If hidden, tap More in the app row.':'Unzip the packet. In a new Wardrobe App chat, attach all files and send “Follow Start-here.txt.”'}</p><div data-copyresult class="msg" role="status"></div><details><summary>Other options</summary><div class="row"><button data-copytrip>Copy request</button><button data-downloadphotos>Download packet</button>${chatGPTLinks()}<button data-checkplan>Check for finished lookbook</button></div><button data-filefallback>Prepare for Claude or another chat</button><div data-fallbackout></div></details>`;
  const download=async e=>{const b=e.currentTarget;b.disabled=true;try{fresh();const zip=await zipFiles(packet);fresh();saveBlob(zip,'Wardrobe-trip-'+t.snapshotId+'.zip');out.querySelector('[data-copyresult]').textContent='Downloaded. Attach the unzipped files to a new Wardrobe App chat.'}catch(err){out.querySelector('[data-copyresult]').textContent=err.message}finally{b.disabled=false}};
- out.querySelector('[data-sendtrip]').onclick=shareable?async()=>{try{fresh();await navigator.share({files:packet,text})}catch(err){if(err.name!=='AbortError')out.querySelector('[data-copyresult]').textContent=err.message+' Open Other options to download the packet.'}}:download;
+ out.querySelector('[data-sendtrip]').onclick=shareable?async()=>{try{fresh();await navigator.share({files,text})}catch(err){if(err.name!=='AbortError')out.querySelector('[data-copyresult]').textContent=err.message+' Open Other options to download the packet.'}}:download;
  out.querySelector('[data-copytrip]').onclick=async()=>{const el=out.querySelector('[data-copyresult]');try{fresh();try{await navigator.clipboard.writeText(text);el.textContent='Copied. Paste into the same message as the photos.'}catch{el.innerHTML='<p>Press and hold to copy:</p><textarea readonly aria-label="Trip request"></textarea>';el.querySelector('textarea').value=text}}catch(err){el.textContent=err.message}};
  out.querySelector('[data-downloadphotos]').onclick=download;
  out.querySelector('[data-checkplan]').onclick=()=>checkReturnedPlans(true);
@@ -278,13 +278,13 @@ async function checkReturnedPlans(manual=false){
    const images=await api('/rest/v1/records?select=data&kind=eq.render&deleted=eq.false&wardrobe=eq.'+encodeURIComponent(profile.cloudId))||[];
    const plan={...row.data.plan,renders:images.map(x=>x.data).filter(z=>z.tripId===row.id&&z.snapshotId===row.data.plan.snapshotId&&renderMatchesPlan(row.data.plan,z))};
    validatePlan(plan);plan.renders=await Promise.all(plan.renders.map(async z=>{const image=z.image.startsWith('sb:')?await downloadPhoto(z.image.slice(3)):z.image;if(!image)throw new Error('A returned image could not be loaded. Try again.');return {...z,image};}));
-   validatePlan(plan);const missing=missingRenders(plan);plan.bundleStatus=row.data.status==='partial'||missing.length?'partial':'complete';shownProposalKey=key;editJourney(row.id);$('#replyDetails').open=true;previewPlan(plan);
-   if(plan.bundleStatus==='partial')$('#planReview').insertAdjacentHTML('afterbegin','<p class="msg err">Incomplete lookbook: '+esc(row.data.error||missing.length+' outfit images are missing.')+'</p>');
+   validatePlan(plan);const missing=missingRenders(plan);if(!manual&&(row.data.status==='partial'||missing.length))continue;plan.bundleStatus=row.data.status==='partial'||missing.length?'partial':'complete';shownProposalKey=key;editJourney(row.id);$('#replyDetails').open=true;previewPlan(plan);
+   if(plan.bundleStatus==='partial')$('#planReview').insertAdjacentHTML('afterbegin','<p class="muted sm">'+esc(row.data.error||'Outfit plan received. '+missing.length+' try-on images have not returned yet.')+'</p>');
    const save=$('#savePlanFinal'),accept=save.onclick;
    save.onclick=async e=>{await accept(e);if(trips.find(t=>t.id===row.id)?.status==='planned'&&!$('#planReview').innerHTML)await dPut(db,'meta',{id:'accepted-proposal:'+row.id,key})};
    $('#planMsg').textContent=plan.bundleStatus==='partial'?'A partial result arrived. See what remains below.':'Your complete lookbook is ready. Review outfits, products and renders below.';return;
   }
-  if(manual)$('#planMsg').textContent=rows.some(r=>r.data.status==='rendering')?'ChatGPT saved the plan and is still rendering.':'No new proposal has arrived yet.';
+  if(manual)$('#planMsg').textContent=rows.some(r=>r.data.status==='rendering')?'An outfit plan arrived; its images have not all returned yet.':'No new proposal has arrived yet.';
  }catch(e){$('#planMsg').textContent='Could not load the returned plan: '+e.message}
  finally{checkingReturnedPlans=false}
 }
