@@ -1031,7 +1031,7 @@ function renderOutfitView(first){
           <button class="small right" data-oact="edit">Edit</button><button class="small danger" data-oact="del">Delete</button>
         </div>
         <input type="file" id="renderPick" accept="image/*" hidden>
-        <div id="tryonMsg" class="msg">${!faces.length?"Add a few photos of your face in the More tab first.":missing.length?`Not in your closet, so left out: ${esc(missing.join(", "))}.`:(o.renders||[]).length?"":"Free with your ChatGPT plan: the photos go to the ChatGPT app and the instructions are copied, so you paste and send. Save the picture it makes, then tap Add picture."}</div>
+        <div id="tryonMsg" class="msg">${!faces.length?"Add a few photos of your face in the More tab first.":missing.length?`Not in your closet, so left out: ${esc(missing.join(", "))}.`:(o.renders||[]).length?"":"Free with your ChatGPT plan: sends the photos and an instructions PDF to the ChatGPT app in one go. Save the picture it makes, then tap Add picture."}</div>
         ${(o.renders||[]).length>1?`<div class="prev">${o.renders.map((x,i)=>`<img src="${x.image}" data-ri="${i}" class="${i===shownRender?"on":""}" alt="">`).join("")}</div>`:""}
         ${o.note?`<p class="sm" style="margin:12px 0 0">${esc(o.note)}</p>`:""}
         ${o.scene?`<details><summary>Place</summary><p class="sm">${esc(o.scene)}${o.weather?` · ${esc(o.weather)}`:""}</p></details>`:""}
@@ -1054,23 +1054,44 @@ async function prepGptFiles(o){
   const refs=faces.slice(0,3).map((f,i)=>({u:f.data,n:`face-${i+1}.jpg`}));
   for(const p of ps) if((p.it.photos||[])[0]) refs.push({u:p.it.photos[0],n:`${p.id}.jpg`});
   for(const p of ps) if((p.it.photos||[])[1]) refs.push({u:p.it.photos[1],n:`${p.id}-2.jpg`});
-  const files=[]; for(const r of refs.slice(0,10)){const b=await dataURLtoBlob(await shrink(r.u,1024));files.push(new File([b],r.n,{type:"image/jpeg"}))}
+  const files=[gptPDF(o)]; for(const r of refs.slice(0,9)){const b=await dataURLtoBlob(await shrink(r.u,1024));files.push(new File([b],r.n,{type:"image/jpeg"}))}
   if(gptPack.key===key) gptPack.files=files;
+}
+const GPT_ASK="Make the try-on picture described in the attached PDF, using the attached photos.";
+function gptPDF(o){ // one small text PDF with the instructions, so nothing needs pasting
+  const clean=t=>t.replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/[–—]/g,"-").replace(/…/g,"...").replace(/·/g,"-").replace(/[^\x20-\x7e\n]/g,"?");
+  const body=clean(`${GPT_ASK}\n\n${buildPrompt(o)}`), lines=[];
+  for(const para of body.split("\n")){let l="";for(const w of para.split(" ")){if((l+" "+w).trim().length>92){lines.push(l);l=w}else l=(l?l+" ":"")+w}lines.push(l)}
+  const per=54, pages=[]; for(let i=0;i<lines.length;i+=per) pages.push(lines.slice(i,i+per));
+  const objs=["<< /Type /Catalog /Pages 2 0 R >>","",`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`];
+  const kids=[];
+  for(const pg of pages){
+    const stream="BT /F1 10 Tf 13 TL 50 742 Td "+pg.map(l=>`(${l.replace(/[\\()]/g,"\\$&")}) Tj T*`).join(" ")+" ET";
+    objs.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${objs.length+2} 0 R >>`);
+    kids.push(`${objs.length} 0 R`);
+    objs.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+  }
+  objs[1]=`<< /Type /Pages /Kids [${kids.join(" ")}] /Count ${kids.length} >>`;
+  let out="%PDF-1.4\n"; const off=[];
+  objs.forEach((x,i)=>{off.push(out.length);out+=`${i+1} 0 obj\n${x}\nendobj\n`});
+  const xref=out.length;
+  out+=`xref\n0 ${objs.length+1}\n0000000000 65535 f \n`+off.map(n=>String(n).padStart(10,"0")+" 00000 n \n").join("")+`trailer\n<< /Size ${objs.length+1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return new File([out],`Try-on instructions - ${(o.name||"outfit").replace(/[^\w ,.-]+/g,"").slice(0,40)}.pdf`,{type:"application/pdf"});
 }
 function tryOnInChatGPT(o){
   const m=$("#tryonMsg"), say=(t,c="")=>{m.className="msg "+c;m.textContent=t};
   if(!faces.length) return say("Add 2 or 3 photos of your face first (More, then Photos).","err");
   if(!outfitPieces(o).some(p=>p.it)) return say("This outfit has no pieces from your closet.","err");
   const files=gptPack.files; if(!files) return say("Getting the photos ready. Tap again in a second.");
-  const text=buildPrompt(o);
-  try{navigator.clipboard.writeText(text).catch(()=>{})}catch(e){}
-  if(navigator.canShare&&navigator.canShare({files})){
-    navigator.share({files}).then(()=>say("Photos sent. In ChatGPT, tap the message box, paste the instructions and send. When the picture is ready, press on it, save it to Photos, then come back and tap Add picture.","ok"))
+  try{navigator.clipboard.writeText(GPT_ASK).catch(()=>{})}catch(e){}
+  const data=navigator.canShare&&(navigator.canShare({files,text:GPT_ASK})?{files,text:GPT_ASK}:navigator.canShare({files})?{files}:null);
+  if(data){
+    navigator.share(data).then(()=>say("Sent. In ChatGPT, tap send (if the message box is empty, type “go”). When the picture is ready, press on it, save it to Photos, then come back and tap Add picture.","ok"))
       .catch(e=>{if(e.name!=="AbortError")say("Couldn't open the share sheet ("+e.message+").","err")});
-    say("Pick ChatGPT in the share sheet. The instructions are copied, ready to paste.");
+    say("Pick ChatGPT in the share sheet.");
   } else {
     for(const f of files){const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;a.click()}
-    say(`Downloaded ${files.length} photos and copied the instructions. Open chatgpt.com, attach the photos, paste and send. Save the picture, then tap Add picture.`,"ok");
+    say(`Downloaded the instructions PDF and ${files.length-1} photos. Open chatgpt.com, attach them all and send. Save the picture, then tap Add picture.`,"ok");
   }
 }
 async function addRenderPicture(o,f){
