@@ -32,16 +32,32 @@ is called by the new workflow, even if older API keys remain on the device.
 accessing the live wardrobe. Browser/phone interaction and external provider
 uploads should also be checked on the actual device.
 
-With sync enabled, trip planning saves its snapshot, instructions and labeled
-JPEG reference sheets in small private reference records, with a manifest in
-the trip record. Uploads resume from their last successful chunk, and ordinary
-sync excludes reference payloads. Older embedded bundles migrate on the next sync. Continue verifies
-the request reached sync, then offers Copy request. Paste into a ChatGPT
-conversation that has the connected Supabase tools (the owner's Wardrobe App
-conversation). No file download is needed. This does not automatically attach
-files or grant another chat access. Claude and unconnected chats retain the
-optional attachment workflow.
+## Connected trip handoff (v32)
 
-Handoff preparation waits for active sync with visible progress. It reuses photo
-references for an unchanged wardrobe snapshot, and the upload serializer blocks
-embedded image bundles even if a trip changes while sync is in progress.
+Continue planning prepares labeled JPEG wardrobe sheets and face references.
+The wardrobe sheets upload through the existing private photo sync; the trip's
+photoAttachments manifest stores their filenames, garment labels, and private
+photo references. Face filenames and IDs live separately in faceAttachments.
+
+Route to ChatGPT opens the iPhone app directly and copies the request. Paste it
+into the connected Wardrobe App chat. The request tells the assistant to read the
+live trip, download every sheet and face reference through the scoped endpoint,
+and visually inspect the images before planning. Message attachments are not
+required for this connected path. Download/share options remain for file-based
+fallbacks. Direct app launch copies text; it does not inject a message into ChatGPT.
+
+The endpoint checks a short-lived bearer token, exact user/wardrobe/trip scope,
+snapshot, and sheet manifest before returning private photo bytes. It also serves
+full garment references and accepts generated images matching a saved proposal.
+The app reviews complete proposals and reports incomplete results without
+interrupting a new handoff. No paid model API calls are made.
+
+This workflow requires the receiving chat to have the connected database tools,
+local image viewing, outbound HTTP file downloads/uploads, and image generation.
+A missing capability must be reported precisely; neither catalog text nor memory
+is a substitute for visual inspection. A successful endpoint test is not an
+end-to-end test of the receiving ChatGPT session.
+
+Run `node tests/workflow.test.cjs` and `node tests/transfer.test.cjs` for local
+validation, serializer, and endpoint access checks. Test the native app launch on
+the actual iPhone.

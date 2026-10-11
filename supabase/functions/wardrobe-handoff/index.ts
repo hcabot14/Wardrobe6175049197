@@ -18,12 +18,20 @@ Deno.serve(async req=>{
   if(record.data.snapshotId!==snapshot)return json({error:'Wardrobe snapshot changed'},409);
   if(req.method==='GET'){
    const kind=u.searchParams.get('kind'),id=u.searchParams.get('id')||'',index=Number(u.searchParams.get('index')||'0');
-   if(!['item','face','render'].includes(kind||'')||!Number.isInteger(index)||index<0||index>40)return json({error:'Invalid reference'},400);
-   const permitted=kind==='render'?true:kind==='item'?record.data.handoff.catalog.items.some((x:{id:string})=>x.id===id):(record.data.handoff.faceAttachments||[]).some((x:{id:string})=>x.id===id);
-   if(!permitted)return json({error:'Reference outside this handoff'},403);
-   const row=(await rows(user,wardrobe,kind!,id))[0];if(!row||row.data.archived||row.data.mergedInto)return json({error:'Reference is not active'},409);
-   if(kind==='render'&&(row.data.tripId!==trip||row.data.snapshotId!==snapshot))return json({error:'Render outside this handoff'},403);
-   const ref=kind==='render'?row.data.image:kind==='item'?row.data.photos?.[index]:row.data.data;
+   if(!['sheet','item','face','render'].includes(kind||'')||!Number.isInteger(index)||index<0||index>40)return json({error:'Invalid reference'},400);
+   let ref:string|undefined;
+   if(kind==='sheet'){
+    if(index!==0)return json({error:'Invalid sheet index'},400);
+    const sheet=(record.data.handoff.photoAttachments||[]).find((x:{filename:string})=>x.filename===id);
+    if(!sheet)return json({error:'Sheet outside this handoff'},403);
+    ref=sheet.image;
+   }else{
+    const permitted=kind==='render'?true:kind==='item'?record.data.handoff.catalog.items.some((x:{id:string})=>x.id===id):(record.data.handoff.faceAttachments||[]).some((x:{id:string})=>x.id===id);
+    if(!permitted)return json({error:'Reference outside this handoff'},403);
+    const row=(await rows(user,wardrobe,kind!,id))[0];if(!row||row.data.archived||row.data.mergedInto)return json({error:'Reference is not active'},409);
+    if(kind==='render'&&(row.data.tripId!==trip||row.data.snapshotId!==snapshot))return json({error:'Render outside this handoff'},403);
+    ref=kind==='render'?row.data.image:kind==='item'?row.data.photos?.[index]:row.data.data;
+   }
    if(typeof ref==='string'&&/^data:image\/(png|jpeg);base64,/.test(ref)){const comma=ref.indexOf(','),raw=atob(ref.slice(comma+1));if(raw.length>12*1024*1024)return json({error:'Reference exceeds 12 MB'},413);return new Response(Uint8Array.from(raw,c=>c.charCodeAt(0)),{headers:{...cors,'Content-Type':ref.slice(5,ref.indexOf(';')),'Cache-Control':'no-store'}});}
    if(typeof ref!=='string'||!/^sb:[a-f0-9]{32,64}$/.test(ref))return json({error:'Stored reference unavailable'},404);
    const r=await fetch(base+'/storage/v1/object/authenticated/photos/'+user+'/'+ref.slice(3)+'.jpg',{headers});if(!r.ok)return json({error:'Photo download failed'},502);

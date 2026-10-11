@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict');
+let handle;
+const jpeg=new Uint8Array([255,216,255,224,0,1]);
+const token='test-only-token';
+const user='528aa8a5-3210-4bc0-b72a-4c742c8e9b81',wardrobe='w-test',trip='trip-test',snapshot='snapshot-test';
+const record={id:trip,data:{snapshotId:snapshot,handoff:{returnAccess:{token,expiresAt:new Date(Date.now()+60000).toISOString()},photoAttachments:[{filename:'sheet.jpg',image:'sb:'+'a'.repeat(64)}],catalog:{items:[]},faceAttachments:[]}}};
+global.Deno={env:{get:k=>k==='SUPABASE_URL'?'https://test.invalid':k==='SUPABASE_SERVICE_ROLE_KEY'?'server-test-key':undefined},serve:fn=>handle=fn};
+global.fetch=async input=>{const u=new URL(input);if(u.pathname.startsWith('/rest/v1/records')){assert.equal(u.searchParams.get('user_id'),'eq.'+user);assert.equal(u.searchParams.get('wardrobe'),'eq.'+wardrobe);assert.equal(u.searchParams.get('deleted'),'eq.false');return Response.json(u.searchParams.get('kind')==='eq.trip'?[record]:[])}if(u.pathname==='/storage/v1/object/authenticated/photos/'+user+'/'+'a'.repeat(64)+'.jpg')return new Response(jpeg,{headers:{'Content-Type':'image/jpeg'}});throw new Error('Unexpected request '+u.pathname)};
+const req=(patch={},authorization=token)=>{const q=new URLSearchParams({user,wardrobe,trip,snapshot,kind:'sheet',id:'sheet.jpg',...patch});return new Request('https://test.invalid/handoff?'+q,{headers:{Authorization:'Bearer '+authorization}})};
+(async()=>{await import('../supabase/functions/wardrobe-handoff/index.ts');const ok=await handle(req());assert.equal(ok.status,200);assert.deepEqual(new Uint8Array(await ok.arrayBuffer()),jpeg);assert.equal((await handle(req({id:'not-in-manifest.jpg'}))).status,403);assert.equal((await handle(req({},'wrong'))).status,401);assert.equal((await handle(req({snapshot:'stale'}))).status,409);assert.equal((await handle(req({index:'1'}))).status,400);record.data.handoff.returnAccess.expiresAt='2000-01-01';assert.equal((await handle(req())).status,401);console.log('Passed: exact sheet download, user/wardrobe scoping, token, expiry, snapshot and manifest restrictions.');})().catch(e=>{console.error(e);process.exitCode=1});
