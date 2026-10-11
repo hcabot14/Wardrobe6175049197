@@ -143,7 +143,7 @@ del{color:var(--danger)} ins{color:var(--ok);text-decoration:none;font-weight:60
 .banner{display:flex;gap:10px;align-items:flex-start;background:var(--accent-soft);border-radius:14px;padding:12px 14px;margin-bottom:12px;font-size:14px}
 .banner .x{margin-left:auto;min-height:0;padding:2px 8px;border:0;background:none;color:var(--muted)}
 /* home */
-.logo{fill:none;stroke:currentColor;stroke-width:2}
+.logo{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 body.home{padding-bottom:0}
 body.home .top,body.home .tabbar{display:none}
 body.home main{padding-top:0}
@@ -151,7 +151,7 @@ body.home{background-image:repeating-linear-gradient(90deg,color-mix(in srgb,var
 #tab-home{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 36px) 12px calc(env(safe-area-inset-bottom) + 24px)}
 #tab-home[hidden]{display:none}
 .brand{display:flex;flex-direction:column;align-items:center;gap:10px;background:none;border:0;min-height:0;padding:4px;margin:0 auto;color:var(--gold)}
-.brand .logo{width:46px;height:46px}
+.brand .logo{width:56px;height:56px}
 .brand span{font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--muted)}
 .menu{flex:1;display:flex;flex-direction:column;justify-content:center;padding:28px 0}
 .menu .in{border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);padding:4px 0;background:color-mix(in srgb,var(--bg) 92%,transparent)}
@@ -171,7 +171,6 @@ body.home{background-image:repeating-linear-gradient(90deg,color-mix(in srgb,var
 .dots svg{width:20px;height:20px}
 #homeStart:empty{display:none}
 #homeStart{margin-top:8px}
-.welcome .wicon{background:#121110;color:#c9a96e}
 /* sheets */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;align-items:flex-end;justify-content:center;z-index:20;padding-top:max(env(safe-area-inset-top),20px)}
 .modal.open{display:flex}
@@ -269,6 +268,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
   .photos img{height:220px}
   h2.page{font-size:31px}
 }
+.welcome .wicon{background:#6b4026 url(icon-180.png) center/cover;color:#f3e9d6;border-radius:16px}
 </style>
 </head>
 <body>
@@ -282,7 +282,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
   <div id="notice"></div>
   <section id="tab-home">
     <div id="banner"></div>
-    <button class="brand" id="brandBtn" aria-label="Switch wardrobe"><svg viewBox="0 0 64 64" class="logo" aria-hidden="true"><circle cx="32" cy="32" r="24"/><circle cx="32" cy="32" r="18" stroke-width="1"/><circle cx="27" cy="27" r="2.4"/><circle cx="37" cy="27" r="2.4"/><circle cx="27" cy="37" r="2.4"/><circle cx="37" cy="37" r="2.4"/></svg><span id="brandName">Wardrobe</span></button>
+    <button class="brand" id="brandBtn" aria-label="Switch wardrobe"><svg viewBox="0 0 64 64" class="logo" aria-hidden="true"><path d="M27.3 15.2 A5.2 5.2 0 1 1 32 18.2 V22.5"/><path d="M32 22.5 L11.5 36.2 C9.6 37.5 10.4 40 12.6 40 H51.4 C53.6 40 54.4 37.5 52.5 36.2 Z"/></svg><span id="brandName">Wardrobe</span></button>
     <nav class="menu" aria-label="Main"><div class="in">
       <button class="mi" data-home="closet"><i>i</i><span class="t">Closet</span><span class="n" id="hn-closet"></span></button>
       <button class="mi" data-home="outfits"><i>ii</i><span class="t">Outfits</span><span class="n" id="hn-outfits"></span></button>
@@ -346,7 +346,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
 
 <nav class="tabbar"><div class="in">
   <button data-tab="home" class="on"><svg viewBox="0 0 24 24" class="ic"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/></svg>Home</button>
-  <button data-tab="closet"><svg viewBox="0 0 24 24" class="ic"><path d="M10 6.2a2 2 0 1 1 2.6 1.9c-.4.2-.6.5-.6.9v1"/><path d="M12 10 3.4 16.4c-.8.6-.4 1.6.5 1.6h16.2c.9 0 1.3-1 .5-1.6Z"/></svg>Closet</button>
+  <button data-tab="closet"><svg viewBox="0 0 64 64" class="ic" style="stroke-width:4.2"><path d="M27.3 15.2 A5.2 5.2 0 1 1 32 18.2 V22.5"/><path d="M32 22.5 L11.5 36.2 C9.6 37.5 10.4 40 12.6 40 H51.4 C53.6 40 54.4 37.5 52.5 36.2 Z"/></svg>Closet</button>
   <button data-tab="outfits"><svg viewBox="0 0 24 24" class="ic"><path d="M8.5 3.5 4 6 2.5 10.5l3 1.1V20.5h13v-8.9l3-1.1L20 6l-4.5-2.5c-.6 1.6-2 2.5-3.5 2.5s-2.9-.9-3.5-2.5Z"/></svg>Outfits</button>
   <button data-tab="trips"><svg viewBox="0 0 24 24" class="ic"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5.2c0-.7.5-1.2 1.2-1.2h3.6c.7 0 1.2.5 1.2 1.2V7M3 12.5h18"/></svg>Trips</button>
   <button data-tab="more"><svg viewBox="0 0 24 24" class="ic"><circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/></svg>More</button>
@@ -366,9 +366,9 @@ function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";cl
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}};
 const rid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const ICON={
-  logo:`<svg viewBox="0 0 64 64" class="logo" style="width:40px;height:40px" aria-hidden="true"><circle cx="32" cy="32" r="24"/><circle cx="32" cy="32" r="18" stroke-width="1"/><circle cx="27" cy="27" r="2.4"/><circle cx="37" cy="27" r="2.4"/><circle cx="27" cy="37" r="2.4"/><circle cx="37" cy="37" r="2.4"/></svg>`,
+  logo:`<svg viewBox="0 0 64 64" class="logo" style="width:40px;height:40px" aria-hidden="true"><path d="M27.3 15.2 A5.2 5.2 0 1 1 32 18.2 V22.5"/><path d="M32 22.5 L11.5 36.2 C9.6 37.5 10.4 40 12.6 40 H51.4 C53.6 40 54.4 37.5 52.5 36.2 Z"/></svg>`,
   trip:`<svg viewBox="0 0 24 24" class="ic"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5.2c0-.7.5-1.2 1.2-1.2h3.6c.7 0 1.2.5 1.2 1.2V7M3 12.5h18"/></svg>`,
-  hanger:`<svg viewBox="0 0 24 24" class="ic"><path d="M10 6.2a2 2 0 1 1 2.6 1.9c-.4.2-.6.5-.6.9v1"/><path d="M12 10 3.4 16.4c-.8.6-.4 1.6.5 1.6h16.2c.9 0 1.3-1 .5-1.6Z"/></svg>`
+  hanger:`<svg viewBox="0 0 64 64" class="ic" style="stroke-width:4.2"><path d="M27.3 15.2 A5.2 5.2 0 1 1 32 18.2 V22.5"/><path d="M32 22.5 L11.5 36.2 C9.6 37.5 10.4 40 12.6 40 H51.4 C53.6 40 54.4 37.5 52.5 36.2 Z"/></svg>`
 };
 
 /* ================= categories ================= */
