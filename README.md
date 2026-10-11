@@ -4,7 +4,7 @@ A personal wardrobe app: catalog your clothes from photos, fix entries in plain 
 
 Open it at the GitHub Pages link for this repository.
 
-## Subscription workflow (v21)
+## Subscription workflow (v22)
 
 Home, Closet, Trips and More remain in one app. Add clothes is under Closet.
 The header has no profile photo; Everyday outfits is no longer shown.
@@ -33,7 +33,9 @@ accessing the live wardrobe. Browser/phone interaction and external provider
 uploads should also be checked on the actual device.
 
 With sync enabled, trip planning saves its snapshot, instructions and labeled
-JPEG reference sheets in the existing private trip record. Continue verifies
+JPEG reference sheets in small private reference records, with a manifest in
+the trip record. Uploads resume from their last successful chunk, and ordinary
+sync excludes reference payloads. Older embedded bundles migrate on the next sync. Continue verifies
 the request reached sync, then offers Copy request. Paste into a ChatGPT
 conversation that has the connected Supabase tools (the owner's Wardrobe App
 conversation). No file download is needed. This does not automatically attach

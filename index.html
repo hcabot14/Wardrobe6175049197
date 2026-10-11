@@ -1889,7 +1889,7 @@ async function syncNow(){
     }
     for(const [cid,n] of localByCloud){const d=n===dbName?db:await openDB(n);await pushWardrobe(d,cid,setSync);if(d!==db)d.close()}
     const sd=await syncDB(), ck="cursor:"+session.uid, since=(await dGet(sd,"state",ck))||"1970-01-01T00:00:00Z"; const rows=[];
-    for(let off=0;;off+=1000){const page=await api(`/rest/v1/records?select=wardrobe,kind,id,data,deleted,updated_at&updated_at=gt.${encodeURIComponent(since)}&order=updated_at.asc&limit=1000&offset=${off}`)||[];rows.push(...page);if(page.length<1000)break}
+    for(let off=0;;off+=1000){const page=await api(`/rest/v1/records?select=wardrobe,kind,id,data,deleted,updated_at&kind=neq.reference&updated_at=gt.${encodeURIComponent(since)}&order=updated_at.asc&limit=1000&offset=${off}`)||[];rows.push(...page);if(page.length<1000)break}
     const res=await applyRows(rows,localByCloud,setSync);
     if(rows.length){const max=rows.map(r=>r.updated_at).sort().pop();await dPut(sd,"state",new Date(new Date(max).getTime()-120000).toISOString(),ck)}
     for(const n of res.removed){

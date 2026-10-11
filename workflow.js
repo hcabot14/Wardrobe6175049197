@@ -1,6 +1,6 @@
 /* Subscription workflow: no model API calls. Existing records and sync stay intact. */
 'use strict';
-const APP_RELEASE='21';
+const APP_RELEASE='22';
 const activeItems=()=>items.filter(it=>!it.archived&&!it.mergedInto);
 const dayISO=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const validDate=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&!isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s;
@@ -88,14 +88,14 @@ Once we agree, return ONLY JSON in this schema, with exactly these snapshotId an
 {"snapshotId":"${id}","tripId":"${t.id}","name":"trip name","startDate":"YYYY-MM-DD","endDate":"YYYY-MM-DD","outfitsPerDay":"one or two","summary":"packing approach and weather assumptions","outfits":[{"date":"YYYY-MM-DD","slot":"day or evening","day":"display label","place":"city","name":"outfit name","plan":"activities","weather":"conditions","scene":"specific setting","itemIds":["EXACT-CLOSET-ID"],"note":"reason"}],"gaps":[{"item":"specific product","why":"trip-specific need","url":"https://verified-retailer-url"}]}
 Cover EVERY date, including travel days. Include a day slot for every date, plus evening slots as agreed. Set outfitsPerDay to two only if we agreed to both slots EVERY day, otherwise one. Keep the JSON snapshotId and tripId unchanged. My app will reject unknown or archived IDs. Do not generate pictures until I supply that outfit's separate full garment and face reference pack.`}
 const blobData=blob=>new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(new Error('Could not prepare references.'));r.readAsDataURL(blob)});
-function connectedRequest(t){return `Please continue planning my saved wardrobe trip. Read the live records through the connected Supabase tool; do not use remembered wardrobe details. Project: ${new URL(cloudBase()).hostname.split('.')[0]}. Table: public.records. Scope user_id=${session.uid}, wardrobe=${profile.cloudId}, kind=trip, id=${t.id}, deleted=false. Read data.handoff.instructions and data.handoff.catalog; the labeled reference images are data.handoff.photoSheets (JPEG data URLs). Inspect those images, then check current active item records in this same user and wardrobe scope before selecting garments. Snapshot: ${t.snapshotId}. If you cannot access the connection or photos, tell me instead of guessing. First discuss the plan with me; do not write a final plan until we agree.`}
+function connectedRequest(t){return `Please continue planning my saved wardrobe trip. Read the live records through the connected Supabase tool; do not use remembered wardrobe details. Project: ${new URL(cloudBase()).hostname.split('.')[0]}. Table: public.records. Scope user_id=${session.uid}, wardrobe=${profile.cloudId}, kind=trip, id=${t.id}, deleted=false. Read data.handoff.instructions and data.handoff.catalog; data.handoff.photoReferences lists the labeled image sheets. For each sheet, fetch public.records rows with kind=reference and the listed chunk IDs, in this same user/wardrobe scope. Concatenate data.text in chunk-list order to reconstruct the JPEG data URL. Inspect those images, then check current active item records in this same user and wardrobe scope before selecting garments. Snapshot: ${t.snapshotId}. If you cannot access the connection or photos, tell me instead of guessing. First discuss the plan with me; do not write a final plan until we agree.`}
 function copyRequestPanel(t,out){const text=connectedRequest(t);out.innerHTML='<p>Ready. Copy the request, then paste it into our Wardrobe App chat.</p><div class="row"><button class="primary" data-copytrip>Copy request</button><a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Open ChatGPT</a></div><div data-copyresult class="msg"></div><details><summary>Other ways to continue</summary><p class="muted sm">For Claude or a chat without your wardrobe connection, prepare an attachment package.</p><button data-filefallback>Prepare files</button><div data-fallbackout></div></details>';
  out.querySelector('[data-copytrip]').onclick=async()=>{try{await navigator.clipboard.writeText(text);out.querySelector('[data-copyresult]').textContent='Copied. Switch to our Wardrobe App chat and paste.'}catch{const el=out.querySelector('[data-copyresult]');el.innerHTML='<p>Press and hold to copy:</p><textarea readonly aria-label="Trip request"></textarea>';el.querySelector('textarea').value=text}};
  out.querySelector('[data-filefallback]').onclick=async e=>{e.currentTarget.disabled=true;const el=out.querySelector('[data-fallbackout]');el.textContent='Preparing…';try{handoffPanel(await requestFiles(planningPrompt(t,t.snapshotId)),el,'Files ready.')}catch(err){el.textContent=err.message}finally{e.currentTarget.disabled=false}};
 }
 async function syncHandoff(t,expectedWardrobe){
  const deadline=Date.now()+45000;while(syncing&&Date.now()<deadline)await new Promise(r=>setTimeout(r,200));if(syncing)throw new Error('Sync is still busy. Try again shortly.');
- await syncNow();if(syncState.err)throw new Error('The request is saved on this device, but sync failed. Reconnect and try Continue again.');if(profile.cloudId!==expectedWardrobe)throw new Error('The selected wardrobe changed. Please try again.');
+ await syncNow();if(syncState.err)throw new Error('Request saved on this device. '+(syncState.text||'Sync did not finish.')+' Try Continue again after this is resolved.');if(profile.cloudId!==expectedWardrobe)throw new Error('The selected wardrobe changed. Please try again.');
  const rows=await api(`/rest/v1/records?select=data&wardrobe=eq.${encodeURIComponent(expectedWardrobe)}&kind=eq.trip&id=eq.${encodeURIComponent(t.id)}&deleted=eq.false`);
  if(!rows?.some(r=>r.data?.handoff?.preparedAt===t.handoff.preparedAt))throw new Error('The request has not finished syncing. Try Continue again.');
  if(snapshotId()!==t.snapshotId)throw new Error('The wardrobe changed during sync. Tap Continue to refresh the references.');
@@ -106,7 +106,7 @@ planTrip=async function(){const m=$('#planMsg'),b=$('#planBtn');b.disabled=true;
  t.snapshotId=id;t.handoff={version:1,preparedAt:now(),catalog:catalogSnapshot(),photoSheets,instructions:planningPrompt(t,id).replaceAll('attached','saved').replaceAll('Current-wardrobe.json','data.handoff.catalog')};t.updatedAt=now();await putTrip(t);await syncHandoff(t,wardrobe);requestReady={tripId:t.id,snapshotId:id};copyRequestPanel(t,$('#requestFiles'));m.textContent='';$('#replyDetails').open=false;
  }catch(e){m.textContent=e.message}finally{b.disabled=false}};
 $('#planBtn').onclick=()=>planTrip();
-renderTrips=function(){const list=allTrips(),section=(title,ts)=>`<h3 class="grouph">${title}</h3>${ts.length?ts.map(t=>`<button class="tcard panel" data-trip="${esc(t.id)}"><span class="ico">${ICON.trip}</span><span><div class="nm">${esc(t.name)}</div><div class="muted sm">${esc(t.startDate||'Dates not set')}${t.endDate?' – '+esc(t.endDate):''} · ${tripOutfits(t).length} outfits${t.status==='draft'?' · Draft':''}</div></span></button>`).join(''):'<p class="muted sm">No journeys here yet.</p>'}`;$('#tripList').innerHTML=section('Upcoming & current',list.filter(t=>!isPastTrip(t)))+`<details><summary>Past trips (${list.filter(isPastTrip).length})</summary>${section('Past journeys',list.filter(isPastTrip))}</details>`};
+renderTrips=function(){const list=allTrips(),section=(title,ts)=>`<h3 class="grouph">${title}</h3>${ts.length?ts.map(t=>`<button class="tcard panel" data-trip="${esc(t.id)}" ${canSwipeDraft(t)?'data-swipe-draft="true" style="touch-action:pan-y"':''}><span class="ico">${ICON.trip}</span><span><div class="nm">${esc(t.name)}</div><div class="muted sm">${esc(t.startDate||'Dates not set')}${t.endDate?' – '+esc(t.endDate):''} · ${tripOutfits(t).length} outfits${t.status==='draft'?' · Draft':''}</div></span></button>`).join(''):'<p class="muted sm">No journeys here yet.</p>'}`;$('#tripList').innerHTML=section('Upcoming & current',list.filter(t=>!isPastTrip(t)))+`<details><summary>Past trips (${list.filter(isPastTrip).length})</summary>${section('Past journeys',list.filter(isPastTrip))}</details>`};
 function validatePlan(r){
  if(!r||typeof r!=='object')throw new Error('Invalid plan.');const t=trips.find(t=>t.id===r.tripId);if(!t)throw new Error('No saved journey matches this reply. Prepare a request from this app first.');
  if(!t.snapshotId||r.snapshotId!==t.snapshotId||r.snapshotId!==snapshotId())throw new Error('This reply uses an older or different wardrobe. Prepare a fresh request to keep the plan grounded in your current closet.');
@@ -147,3 +147,32 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&profile){
 const style=document.createElement('style');style.textContent='.packrow{display:flex;align-items:center;gap:10px;padding:8px 0;margin:0}.packrow img{width:44px;height:52px;object-fit:contain;border-radius:6px}.packrow input{width:20px;height:20px}.packrow span{font-size:13px}.menu .mi{padding-left:0}#planReview{max-height:65vh;overflow:auto}#requestFiles .row a,#closetPack .row a{font-size:13px}';document.head.appendChild(style);
 
 exportForChatGPT=async function(){const out=$('#moreMsg');out.textContent='Preparing your current wardrobe…';try{const files=await requestFiles(strictRule+'\nUse the attached catalog and photos to discuss my wardrobe. Do not plan from prior memory.');handoffPanel(files,out,'Current active wardrobe ready.')}catch(e){out.textContent=e.message}};
+
+// Keep image bytes out of the trip JSON: small, resumable private reference rows.
+function splitReferenceSheets(t){return (t.handoff.photoSheets||[]).map((text,sheet)=>{const hash=cyrb(text),chunks=[];for(let part=0,at=0;at<text.length;part++,at+=60000)chunks.push({id:`ref-${t.id}-${hash}-${sheet}-${part}`,data:{sheet,part,text:text.slice(at,at+60000)}});return {sheet,hash,chunks}})}
+const normalPushWardrobe=pushWardrobe;
+pushWardrobe=async function(d,cloudId,status){
+ for(const trip of await getAll('trips',d)){
+  if(!trip.handoff?.photoSheets?.length)continue;
+  const sheets=splitReferenceSheets(trip),rows=sheets.flatMap(s=>s.chunks);let done=0;
+  for(const row of rows){const marker='reference-upload:'+row.id;
+   if(!await dGet(d,'meta',marker)){status(`Saving photo references… ${done+1} of ${rows.length}`);await pushRows([{user_id:session.uid,wardrobe:cloudId,kind:'reference',id:row.id,data:row.data,deleted:false}]);await dPut(d,'meta',{id:marker,uploaded:true})}done++;
+  }
+  const latest=await dGet(d,'trips',trip.id);if(latest?.handoff?.preparedAt!==trip.handoff.preparedAt)continue;
+  latest.handoff.photoReferences=sheets.map(s=>({sheet:s.sheet,hash:s.hash,chunkIds:s.chunks.map(c=>c.id)}));delete latest.handoff.photoSheets;latest.handoff.version=2;latest.updatedAt=now();await dPut(d,'trips',latest);
+  if(d===db){const i=trips.findIndex(t=>t.id===latest.id);if(i>=0)trips[i]=latest}
+ }
+ return normalPushWardrobe(d,cloudId,status);
+};
+
+// Swipe dismissal is restricted to empty draft journeys. Planned trips never opt in.
+function canSwipeDraft(t){return t.status==='draft'&&tripOutfits(t).length===0&&!t.imported}
+const allTripsIncludingDismissed=allTrips;
+allTrips=function(){return allTripsIncludingDismissed().filter(t=>!t.dismissed)};
+let draftSwipe=null,suppressTripClickUntil=0;
+const tripListElement=$('#tripList');
+tripListElement.addEventListener('pointerdown',e=>{const el=e.target.closest('[data-swipe-draft]');if(!el||e.isPrimary===false)return;const t=trips.find(t=>t.id===el.dataset.trip);if(!t||!canSwipeDraft(t))return;draftSwipe={el,id:t.id,x:e.clientX,y:e.clientY,pointer:e.pointerId,dx:0}});
+tripListElement.addEventListener('pointermove',e=>{const g=draftSwipe;if(!g||g.pointer!==e.pointerId)return;const dy=e.clientY-g.y;g.dx=e.clientX-g.x;if(Math.abs(dy)>30&&Math.abs(dy)>Math.abs(g.dx)){g.el.style.transform='';draftSwipe=null;return}if(g.dx< -12)g.el.style.transform=`translateX(${Math.max(g.dx,-150)}px)`});
+tripListElement.addEventListener('pointercancel',()=>{if(draftSwipe)draftSwipe.el.style.transform='';draftSwipe=null});
+tripListElement.addEventListener('pointerup',async e=>{const g=draftSwipe;draftSwipe=null;if(!g)return;g.el.style.transform='';if(g.dx> -85||Math.abs(e.clientY-g.y)>45)return;suppressTripClickUntil=Date.now()+700;const t=trips.find(t=>t.id===g.id);if(!t||!canSwipeDraft(t))return;try{const dismissed={...t,dismissed:true,updatedAt:now()};await putTrip(dismissed);Object.assign(t,dismissed);if(editingTrip===t.id)$('#newBrief').click();renderTrips();toast('Draft dismissed');const el=$('#toast');el.innerHTML='Draft dismissed <button class="link" id="undoDraft" style="color:inherit;margin-left:12px">Undo</button>';clearTimeout(el._h);el._h=setTimeout(()=>el.style.display='none',7000);$('#undoDraft').onclick=async()=>{t.dismissed=false;t.updatedAt=now();await putTrip(t);renderTrips();toast('Draft restored')}}catch(err){toast('Could not dismiss draft: '+err.message)}});
+tripListElement.addEventListener('click',e=>{if(Date.now()<suppressTripClickUntil){e.preventDefault();e.stopImmediatePropagation()}},true);
