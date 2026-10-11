@@ -4,9 +4,13 @@ A personal wardrobe app: catalog your clothes from photos, fix entries in plain 
 
 Open it at the GitHub Pages link for this repository.
 
-## Subscription workflow (v19)
+## Subscription workflow (v20)
 
 Home, Closet, Trips and More remain in one app. Add clothes is under Closet.
+The header has no profile photo; Everyday outfits is no longer shown.
+Trip planning begins with one conversational text box. Dates, activities and
+preferences are collected in the conversation; validated dates are saved when
+the finished plan is imported.
 Categories are editable from Closet or More. Archive/sold keeps a garment's
 photos/history but excludes it from new planning and outfit pickers.
 

@@ -6,8 +6,10 @@ const ctx=vm.createContext({document,window:{addEventListener(){},scrollTo(){}},
 const html=fs.readFileSync(__dirname+'/../index.html','utf8'),script=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)][0][1];vm.runInContext(script,ctx);vm.runInContext(fs.readFileSync(__dirname+'/../workflow.js','utf8'),ctx);
 const run=s=>vm.runInContext(s,ctx);
 run(`profile={name:'Test',person:'man',cloudId:'w-test',cats:[{name:'Outerwear',prefix:'OW'}]};dbName='test';items=[{id:'OW-001',name:'Coat',category:'Outerwear',photos:['data:image/jpeg;base64,QQ=='],updatedAt:'1'},{id:'OW-002',name:'Sold coat',category:'Outerwear',archived:true,photos:[],updatedAt:'1'}];faces=[{id:'face',data:'x'}];trips=[{id:'trip-test',name:'Test',startDate:'2026-12-01',endDate:'2026-12-02',per:'one',snapshotId:snapshotId()}];`);
+run("$('#tp_plans').value='Paris in December, two dinners, carry-on only';");assert.equal(run('draftValues().plans'),'Paris in December, two dinners, carry-on only');assert.equal(run('draftValues().conversational'),true);
 const plan=run(`({tripId:'trip-test',snapshotId:snapshotId(),startDate:'2026-12-01',endDate:'2026-12-02',outfits:[{date:'2026-12-01',slot:'day',scene:'Paris',itemIds:['OW-001']},{date:'2026-12-02',slot:'day',scene:'Paris',itemIds:['OW-001']}]})`);ctx.plan=plan;
 assert.equal(run('validatePlan(plan).id'),'trip-test');
+run("trips[0].conversational=true;delete trips[0].startDate;delete trips[0].endDate");assert.equal(run('validatePlan(plan).id'),'trip-test');run("trips[0].conversational=false;trips[0].startDate='2026-12-01';trips[0].endDate='2026-12-02'");
 function bad(mut,rx){ctx.bad=structuredClone(plan);run(mut);assert.throws(()=>run('validatePlan(bad)'),rx)}
 bad("bad.outfits[0].itemIds=['OW-999']",/Unknown or archived/);
 bad("bad.outfits[0].itemIds=['OW-002']",/Unknown or archived/);

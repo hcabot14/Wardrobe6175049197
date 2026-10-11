@@ -273,7 +273,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
 </head>
 <body>
 <header class="top"><div class="in">
-  <button class="who" id="whoBtn" aria-label="Switch wardrobe"><span class="avatar" id="avatar"></span><span class="nm" id="whoName">Wardrobe</span><svg viewBox="0 0 24 24" class="ic"><path d="m6 9 6 6 6-6"/></svg></button>
+  <button class="who" id="whoBtn" aria-label="Switch wardrobe"><span class="nm" id="whoName">Wardrobe</span><svg viewBox="0 0 24 24" class="ic"><path d="m6 9 6 6 6-6"/></svg></button>
   <span class="grow"></span>
   <button class="aiflag warn" id="syncFlag" hidden></button>
 </div></header>
@@ -337,9 +337,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
       </div>
     </div>
     <div id="tripList"></div>
-    <div class="pagehead" style="margin-top:22px"><h3 class="grouph" style="margin:0">Everyday outfits</h3><button class="small" id="newOutfitBtn">+ New outfit</button></div>
-    <div id="outfitMsg" class="msg"></div>
-    <div id="outfitList"></div>
+
   </section>
 
   <section id="tab-more" hidden></section>
@@ -1056,6 +1054,7 @@ function ocard(o){
     <div class="meta"><div class="nm">${esc(o.name)}</div><div class="muted sm">${esc(o.plan||"")}</div></div></button>`;
 }
 function renderOutfits(){ // outfits that aren't part of a trip; trip outfits open from their trip
+  if(!$("#outfitList")) return;
   const os=sortedOutfits(outfits.filter(o=>!o.trip&&!o.tripId));
   $("#outfitList").innerHTML=os.length?`<div class="olist">${os.map(ocard).join("")}</div>`:`<p class="muted sm" style="margin-top:4px">Outfits for no trip in particular. Tap New outfit to put one together.</p>`;
 }
@@ -2003,7 +2002,6 @@ function renderHome(){
 function renderHeader(){
   if(!profile) return;
   $("#whoName").textContent=profile.name;
-  $("#avatar").innerHTML=faces[0]?`<img src="${faces[0].data}" alt="">`:esc(profile.name[0].toUpperCase());
   document.title=`${profile.name}'s wardrobe`;
   renderSyncFlag();
 }
@@ -2061,11 +2059,11 @@ document.addEventListener("keydown",e=>{
 $("#brandBtn").onclick=()=>{showTab("more");openPanel("wardrobes")};
 $("#addPhotos").onchange=e=>{const f=[...e.target.files];e.target.value="";if(f.length)addFromPhotos(f)};
 $("#addManualBtn").onclick=openAddManual;
-$("#newOutfitBtn").onclick=()=>openOutfitEditor(null);
+
 $("#pastePlanBtn").onclick=()=>pastePlan(false);
 $("#usePasteBtn").onclick=()=>pastePlan(true);
 try{if(localStorage.getItem("wardrobe-pendingplan"))showPaste()}catch(e){}
-$("#outfitList").onclick=e=>{const c=e.target.closest("[data-outfit]");if(c)openOutfit(c.dataset.outfit)};
+
 $("#planBtn").onclick=planTrip;
 $("#tripList").onclick=e=>{const c=e.target.closest("[data-trip]");if(c)openTrip(c.dataset.trip)};
 if("serviceWorker" in navigator&&location.protocol==="https:") navigator.serviceWorker.register("sw.js").catch(()=>{});
