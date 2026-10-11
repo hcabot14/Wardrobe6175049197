@@ -1369,7 +1369,7 @@ function panelHTML(k){
     <div class="row"><button class="primary" data-m="saveprofile">Save</button></div>`;
   if(k==="ai") return `${shead("Smart features",hasAI()?"On":"Off")}
     <p class="muted sm" style="margin-top:0">Trip plans, sorting photos and fixes in your own words. A free Google Gemini key is all you need. Keys stay on this device.</p>
-    <label for="m_gkey">Google Gemini key (free)</label><input id="m_gkey" type="password" autocomplete="off" value="${esc(s.gkey)}" placeholder="AIza…">
+    <label for="m_gkey">Google Gemini key (free)</label><input id="m_gkey" type="password" autocomplete="off" value="${esc(s.gkey)}" placeholder="Paste your Gemini key">
     <div class="row"><button class="primary" data-m="savegkey">Save key</button>${s.gkey?`<button data-m="testkey">Check it works</button><button class="danger small right" data-m="forgetgkey">Remove</button>`:""}</div>
     <div class="msg" id="gkeyMsg"></div>
     <details ${s.gkey?"":"open"}><summary>How do I get a free key?</summary><ol class="sm" style="padding-left:18px;margin:6px 0">
@@ -1428,7 +1428,7 @@ async function moreClick(e){
   if(a==="saveprofile"){profile.name=$("#m_name").value.trim()||profile.name;profile.build=$("#m_build").value.trim();profile.person=$("#m_person").value;await putMeta();renderHeader();toast("Saved");refreshMore()}
   if(a==="savekey"){const k=$("#m_key").value.trim();if(k&&!/^sk-/.test(k)){km.className="msg err";km.textContent="That doesn't look like an OpenAI key (they start with sk-).";return}
     LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),key:k}); refreshMore(); renderHeader(); if(k) testKey("openai")}
-  if(a==="savegkey"){const k=$("#m_gkey").value.trim(),gm=$("#gkeyMsg");if(k&&!/^AIza/.test(k)){gm.className="msg err";gm.textContent="That doesn't look like a Gemini key (they start with AIza).";return}
+  if(a==="savegkey"){const k=$("#m_gkey").value.trim(),gm=$("#gkeyMsg");if(/^sk-/.test(k)){gm.className="msg err";gm.textContent="That's an OpenAI key. Paste it in the OpenAI box below instead.";return}
     LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),gkey:k}); refreshMore(); renderHeader(); if(k) testKey()}
   if(a==="forgetgkey"){LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),gkey:""});renderHeader();refreshMore();toast("Key removed")}
   if(a==="testkey") testKey(b.dataset.c);
