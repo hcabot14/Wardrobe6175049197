@@ -511,16 +511,44 @@ async function start(){
 }
 
 /* ================= smart features (OpenAI) ================= */
-const AI_DEFAULTS={key:"",textModel:"gpt-4.1-mini",imageModel:"gpt-image-1",quality:"high"};
+const AI_DEFAULTS={key:"",gkey:"",gModel:"gemini-2.5-flash",textModel:"gpt-4.1-mini",imageModel:"gpt-image-1",quality:"high"};
 const ai=()=>({...AI_DEFAULTS,...LS.get("wardrobe-ai",{})});
-const hasAI=()=>!!ai().key;
+const hasAI=()=>!!(ai().key||ai().gkey); // text features: a free Gemini key or an OpenAI key
+const hasOpenAI=()=>!!ai().key;           // try-on pictures made in the app need OpenAI
 function friendlyAIError(status,msg){
   if(status===401) return "OpenAI didn't accept your key. Check it under More → Smart features.";
   if(status===429) return /quota|billing|credit/i.test(msg)?"Your OpenAI account is out of credit. Add some at platform.openai.com → Billing.":"OpenAI is busy right now. Wait a moment and try again.";
   return msg;
 }
-async function aiChat(messages,{maxTokens=4000}={}){
-  const s=ai(); if(!s.key) throw new Error("Turn on smart features first (More → Smart features).");
+async function geminiChat(messages,maxTokens){ // Google's free tier; same JSON contract as aiChat
+  const s=ai(), sys=messages.filter(m=>m.role==="system").map(m=>m.content).join("\n\n");
+  const part=c=>c.type==="image_url"?(([,mime,data])=>({inline_data:{mime_type:mime,data}}))(c.image_url.url.match(/^data:([^;]+);base64,(.*)$/)||[]):{text:c.text};
+  const contents=messages.filter(m=>m.role!=="system").map(m=>({role:m.role==="assistant"?"model":"user",parts:typeof m.content==="string"?[{text:m.content}]:m.content.map(part)}));
+  let lastErr=null;
+  for(const model of [...new Set([s.gModel,"gemini-2.5-flash","gemini-flash-latest","gemini-2.0-flash"].filter(Boolean))]){
+    const body={contents,generationConfig:{responseMimeType:"application/json",maxOutputTokens:maxTokens}};
+    if(sys) body.systemInstruction={parts:[{text:sys}]};
+    if(/2\.5-flash/.test(model)) body.generationConfig.thinkingConfig={thinkingBudget:0};
+    let res;
+    try{res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":s.gkey},body:JSON.stringify(body)})}
+    catch(e){throw new Error("Couldn't reach Google. Check your internet connection and try again.")}
+    const j=await res.json().catch(()=>({}));
+    if(res.ok){
+      const txt=((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(p=>p.text||"").join("");
+      try{const v=JSON.parse(txt.slice(txt.indexOf("{"),txt.lastIndexOf("}")+1)); if(model!==s.gModel) LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),gModel:model}); return v}
+      catch(e){lastErr=new Error("Gemini's answer was cut off or unreadable. Try again.");continue}
+    }
+    const msg=(j.error&&j.error.message)||`Gemini error ${res.status}`;
+    if(res.status===404){lastErr=new Error(msg);continue}
+    if(res.status===400&&/API key|API_KEY/i.test(msg)||res.status===403) throw new Error("Google didn't accept your Gemini key. Check it under More → Smart features.");
+    if(res.status===429) throw new Error("You've hit Gemini's free limit for now. Wait a minute and try again.");
+    throw new Error(msg);
+  }
+  throw lastErr||new Error("Gemini couldn't answer.");
+}
+async function aiChat(messages,{maxTokens=4000,provider}={}){
+  const s=ai(); if(s.gkey&&provider!=="openai") return geminiChat(messages,maxTokens);
+  if(!s.key) throw new Error("Turn on smart features first (More → Smart features).");
   const models=[...new Set([s.textModel,"gpt-4.1-mini","gpt-5-mini","gpt-4o-mini"].filter(Boolean))];
   let lastErr=null;
   for(const model of models){
@@ -632,7 +660,7 @@ function renderStart(){
   $("#banner").innerHTML=isIOS&&!LS.get("wardrobe-nobanner",false)?`<div class="banner"><div><b>Install it on your iPhone.</b> Tap the Share button, then “Add to Home Screen”. Your closet stays safer there and opens like an app.</div><button class="x" data-nobanner aria-label="Dismiss">✕</button></div>`:"";
   if(items.length>=3){$("#start").innerHTML="";return}
   const steps=[
-    [hasAI(),"Turn on smart features","Sorting, fixes in plain words, trip plans and try-on","ai"],
+    [hasAI(),"Turn on smart features","Free: trip plans, photo sorting and fixes in plain words","ai"],
     [faces.length>0,"Add a few photos of your face","So try-on looks like you","faces"],
     [items.length>=3,"Add your clothes","Snap photos, the app does the rest","add"]
   ];
@@ -1026,7 +1054,7 @@ function renderOutfitView(first){
         <div class="row">
           <button class="primary" data-oact="gpt" ${busy?"disabled":""}>${busy?`<span class="spin"></span>Making the picture…`:"Try on in ChatGPT"}</button>
           <button class="small" data-oact="addpic">Add picture</button>
-          ${hasAI()&&!busy?`<button class="small" data-oact="tryon">Make it here</button>`:""}
+          ${hasOpenAI()&&!busy?`<button class="small" data-oact="tryon">Make it here</button>`:""}
           ${r?`<button class="small" data-oact="dl">Save image</button><button class="small danger" data-oact="rmrender">Remove</button>`:""}
           <button class="small right" data-oact="edit">Edit</button><button class="small danger" data-oact="del">Delete</button>
         </div>
@@ -1339,10 +1367,18 @@ function panelHTML(k){
     <div class="form2"><div><label for="m_name">Wardrobe name</label><input id="m_name" value="${esc(profile.name)}"></div>
     <div><label for="m_person">Try-on shows a</label><select id="m_person">${["man","woman","person"].map(p=>`<option ${p===profile.person?"selected":""}>${p}</option>`).join("")}</select></div></div>
     <div class="row"><button class="primary" data-m="saveprofile">Save</button></div>`;
-  if(k==="ai") return `${shead("Smart features",s.key?"On":"Off")}
-    <p class="muted sm" style="margin-top:0">Sorting photos, fixes in your own words, trip plans and try-on use OpenAI with your own key. The key stays on this device.</p>
+  if(k==="ai") return `${shead("Smart features",hasAI()?"On":"Off")}
+    <p class="muted sm" style="margin-top:0">Trip plans, sorting photos and fixes in your own words. A free Google Gemini key is all you need. Keys stay on this device.</p>
+    <label for="m_gkey">Google Gemini key (free)</label><input id="m_gkey" type="password" autocomplete="off" value="${esc(s.gkey)}" placeholder="AIza…">
+    <div class="row"><button class="primary" data-m="savegkey">Save key</button>${s.gkey?`<button data-m="testkey">Check it works</button><button class="danger small right" data-m="forgetgkey">Remove</button>`:""}</div>
+    <div class="msg" id="gkeyMsg"></div>
+    <details ${s.gkey?"":"open"}><summary>How do I get a free key?</summary><ol class="sm" style="padding-left:18px;margin:6px 0">
+      <li>Go to <b>aistudio.google.com/apikey</b> and sign in with any Google account.</li>
+      <li>Tap <b>Create API key</b>, copy it and paste it above. No card needed.</li></ol></details>
+    <h3 style="margin-top:22px">One-tap try-on (optional, paid)</h3>
+    <p class="muted sm" style="margin-top:0">Without this, Try on in ChatGPT is free with your ChatGPT plan.</p>
     <label for="m_key">OpenAI API key</label><input id="m_key" type="password" autocomplete="off" value="${esc(s.key)}" placeholder="sk-…">
-    <div class="row"><button class="primary" data-m="savekey">Save key</button>${s.key?`<button data-m="testkey">Check it works</button><button class="danger small right" data-m="forgetkey">Remove</button>`:""}</div>
+    <div class="row"><button class="primary" data-m="savekey">Save key</button>${s.key?`<button data-m="testkey" data-c="openai">Check it works</button><button class="danger small right" data-m="forgetkey">Remove</button>`:""}</div>
     <div class="msg" id="keyMsg"></div>
     <details><summary>How do I get a key?</summary><ol class="sm" style="padding-left:18px;margin:6px 0">
       <li>Go to <b>platform.openai.com/api-keys</b> and sign in (a ChatGPT login works).</li>
@@ -1391,8 +1427,11 @@ async function moreClick(e){
   if(a==="newwardrobe"){openPanelKey=null;showWelcome({})}
   if(a==="saveprofile"){profile.name=$("#m_name").value.trim()||profile.name;profile.build=$("#m_build").value.trim();profile.person=$("#m_person").value;await putMeta();renderHeader();toast("Saved");refreshMore()}
   if(a==="savekey"){const k=$("#m_key").value.trim();if(k&&!/^sk-/.test(k)){km.className="msg err";km.textContent="That doesn't look like an OpenAI key (they start with sk-).";return}
-    LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),key:k}); refreshMore(); renderHeader(); if(k) testKey()}
-  if(a==="testkey") testKey();
+    LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),key:k}); refreshMore(); renderHeader(); if(k) testKey("openai")}
+  if(a==="savegkey"){const k=$("#m_gkey").value.trim(),gm=$("#gkeyMsg");if(k&&!/^AIza/.test(k)){gm.className="msg err";gm.textContent="That doesn't look like a Gemini key (they start with AIza).";return}
+    LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),gkey:k}); refreshMore(); renderHeader(); if(k) testKey()}
+  if(a==="forgetgkey"){LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),gkey:""});renderHeader();refreshMore();toast("Key removed")}
+  if(a==="testkey") testKey(b.dataset.c);
   if(a==="addcat"||a==="renamecat"||a==="delcat") return catAction(a,b.dataset.c);
   if(a==="forgetkey"){LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),key:""});renderHeader();refreshMore();toast("Key removed")}
   if(a==="savemodels"){LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),textModel:$("#m_tmodel").value.trim()||AI_DEFAULTS.textModel,imageModel:$("#m_imodel").value.trim()||AI_DEFAULTS.imageModel,quality:$("#m_quality").value});toast("Saved")}
@@ -1442,9 +1481,9 @@ async function catAction(a,c){
     if(activeCat===c) activeCat=name; refreshMore(); toast(`Renamed to ${name}`);
   }
 }
-async function testKey(){
-  const km=$("#keyMsg"); if(!km) return; km.className="msg"; km.innerHTML=`<span class="spin"></span>Checking with OpenAI…`;
-  try{const r=await aiChat([{role:"system",content:'Reply with JSON {"ok":true}.'},{role:"user",content:"ping"}],{maxTokens:50});km.className="msg ok";km.textContent=r&&r.ok?"Your key works. Smart features are on.":"OpenAI answered, so your key works."}
+async function testKey(provider){
+  const g=!!ai().gkey&&provider!=="openai", km=g?$("#gkeyMsg"):$("#keyMsg"); if(!km) return; km.className="msg"; km.innerHTML=`<span class="spin"></span>Checking with ${g?"Google":"OpenAI"}…`;
+  try{const r=await aiChat([{role:"system",content:'Reply with JSON {"ok":true}.'},{role:"user",content:"ping"}],{maxTokens:50,provider});km.className="msg ok";km.textContent=r&&r.ok?"Your key works. Smart features are on.":"It answered, so your key works."}
   catch(e){km.className="msg err";km.textContent=e.message}
 }
 function download(name,data,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
