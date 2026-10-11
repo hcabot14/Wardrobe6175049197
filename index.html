@@ -511,7 +511,7 @@ async function start(){
 }
 
 /* ================= smart features (OpenAI) ================= */
-const AI_DEFAULTS={key:"",gkey:"",gModel:"gemini-2.5-flash",textModel:"gpt-4.1-mini",imageModel:"gpt-image-1",quality:"high"};
+const AI_DEFAULTS={key:"",gkey:"",gModel:"",textModel:"gpt-4.1-mini",imageModel:"gpt-image-1",quality:"high"};
 const ai=()=>({...AI_DEFAULTS,...LS.get("wardrobe-ai",{})});
 const hasAI=()=>!!(ai().key||ai().gkey); // text features: a free Gemini key or an OpenAI key
 const hasOpenAI=()=>!!ai().key;           // try-on pictures made in the app need OpenAI
@@ -520,13 +520,26 @@ function friendlyAIError(status,msg){
   if(status===429) return /quota|billing|credit/i.test(msg)?"Your OpenAI account is out of credit. Add some at platform.openai.com → Billing.":"OpenAI is busy right now. Wait a moment and try again.";
   return msg;
 }
+async function geminiModels(){ // ask Google which Flash models this key can use, newest stable first
+  const s=ai();
+  try{
+    const res=await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000",{headers:{"x-goog-api-key":s.gkey}});
+    const j=await res.json().catch(()=>({}));
+    if(!res.ok){const msg=(j.error&&j.error.message)||"";if(/API key|API_KEY/i.test(msg)||res.status===403)throw new Error("Google didn't accept your Gemini key. Check it under More → Smart features.");return []}
+    const ver=n=>parseFloat((n.match(/gemini-(\d+(?:\.\d+)?)/)||[])[1]||0);
+    return (j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>m.name.replace(/^models\//,""))
+      .filter(n=>/^gemini-.*flash/.test(n)&&!/lite|image|tts|audio|live|embed|vision|thinking/.test(n))
+      .sort((a,b)=>(/preview|exp/.test(a)-/preview|exp/.test(b))||ver(b)-ver(a)||(/latest/.test(b)-/latest/.test(a)));
+  }catch(e){if(/didn't accept/.test(e.message))throw e;return []}
+}
 async function geminiChat(messages,maxTokens){ // Google's free tier; same JSON contract as aiChat
   const s=ai(), sys=messages.filter(m=>m.role==="system").map(m=>m.content).join("\n\n");
   const part=c=>c.type==="image_url"?(([,mime,data])=>({inline_data:{mime_type:mime,data}}))(c.image_url.url.match(/^data:([^;]+);base64,(.*)$/)||[]):{text:c.text};
   const contents=messages.filter(m=>m.role!=="system").map(m=>({role:m.role==="assistant"?"model":"user",parts:typeof m.content==="string"?[{text:m.content}]:m.content.map(part)}));
-  let lastErr=null;
-  for(const model of [...new Set([s.gModel,"gemini-2.5-flash","gemini-flash-latest","gemini-2.0-flash"].filter(Boolean))]){
-    const body={contents,generationConfig:{responseMimeType:"application/json",maxOutputTokens:maxTokens}};
+  let lastErr=null, list=[...new Set([s.gModel,"gemini-flash-latest"].filter(Boolean))], listed=false;
+  for(let i=0;i<list.length;i++){
+    const model=list[i];
+    const body={contents,generationConfig:{responseMimeType:"application/json",maxOutputTokens:/2\.5-flash/.test(model)?maxTokens:maxTokens+8000}};
     if(sys) body.systemInstruction={parts:[{text:sys}]};
     if(/2\.5-flash/.test(model)) body.generationConfig.thinkingConfig={thinkingBudget:0};
     let res;
@@ -539,7 +552,10 @@ async function geminiChat(messages,maxTokens){ // Google's free tier; same JSON 
       catch(e){lastErr=new Error("Gemini's answer was cut off or unreadable. Try again.");continue}
     }
     const msg=(j.error&&j.error.message)||`Gemini error ${res.status}`;
-    if(res.status===404){lastErr=new Error(msg);continue}
+    if(res.status===404||/no longer available|not found|not supported/i.test(msg)){
+      lastErr=new Error(msg);
+      if(!listed){listed=true;for(const m of await geminiModels()) if(!list.includes(m)) list.push(m)}
+      continue}
     if(res.status===400&&/API key|API_KEY/i.test(msg)||res.status===403) throw new Error("Google didn't accept your Gemini key. Check it under More → Smart features.");
     if(res.status===429) throw new Error("You've hit Gemini's free limit for now. Wait a minute and try again.");
     throw new Error(msg);
