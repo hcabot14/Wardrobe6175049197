@@ -1418,6 +1418,7 @@ function panelHTML(k){
       <label class="lrow"><span class="lt">Import catalog files</span><span class="ls">CSV or JSON</span><input type="file" id="importInput" accept=".csv,.json,text/csv,application/json" multiple hidden></label>
       <label class="lrow"><span class="lt">Attach photos by file name</span><input type="file" id="matchInput" accept="image/*,.heic,.HEIC" multiple hidden></label>
       <label class="lrow"><span class="lt">Import an outfits file</span><input type="file" id="outfitImport" accept=".json" hidden></label>
+      <button class="lrow" data-m="gptexport"><span class="lt">Export for ChatGPT</span><span class="ls">Closet, photos and instructions for a ChatGPT project</span></button>
       <button class="lrow" data-m="csv"><span class="lt">Download catalog as a spreadsheet</span></button>
       <button class="lrow" data-m="backup"><span class="lt">Download a backup</span></button>
       <label class="lrow"><span class="lt" style="color:var(--danger)">Replace everything from a backup</span><input type="file" id="restoreInput" accept=".json" hidden></label>
@@ -1457,6 +1458,7 @@ async function moreClick(e){
   if(a==="savemodels"){LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),textModel:$("#m_tmodel").value.trim()||AI_DEFAULTS.textModel,imageModel:$("#m_imodel").value.trim()||AI_DEFAULTS.imageModel,quality:$("#m_quality").value});toast("Saved")}
   if(a==="backup") download(`${profile.name.replace(/[^\w-]+/g,"-")}-wardrobe-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({app:"henry-wardrobe",version:3,exportedAt:now(),profile,items,faces,log,outfits,trips}),"application/json");
   if(a==="csv") exportCSV();
+  if(a==="gptexport") exportForChatGPT();
   if(a==="delwardrobe"){
     if(!confirm(`Delete ${profile.name}'s wardrobe from this device: ${items.length} pieces, outfits and photos? This can't be undone. (Download a sync file first if you might want it back.)`)) return;
     if(session&&cloudReady()&&profile.cloudId){try{await cloudDeleteWardrobe(profile.cloudId)}catch(e){if(!confirm("Couldn't remove it from your other devices ("+e.message+"). Delete it on this device anyway?"))return}}
@@ -1507,6 +1509,89 @@ async function testKey(provider){
   catch(e){km.className="msg err";km.textContent=e.message}
 }
 function download(name,data,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+/* Export for ChatGPT: a set of files for a ChatGPT project (instructions, catalog, labeled photo sheets, face photos) */
+const loadImg=u=>new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(new Error("image"));i.src=u});
+const canvasFile=(c,name)=>new Promise(ok=>c.toBlob(b=>ok(new File([b],name,{type:"image/jpeg"})),"image/jpeg",.85));
+function gptInstructions(sheets){
+  const who=profile.name, person=profile.person||"person";
+  return `WARDROBE STYLIST - instructions for this ChatGPT project
+
+You are ${who}'s personal stylist. You plan outfits and trips from the clothes ${who} actually owns, and you make try-on pictures of ${who} wearing them.
+
+FILES IN THIS PROJECT
+- "2 - Catalog.csv": every piece ${who} owns, one row each: ID, category, description, color, brand, fabric, size, notes. This is the source of truth. Never invent pieces or IDs.
+- "Closet sheet" images (${sheets}): a photo of every piece, each labeled with its ID. Use them to see exactly what a piece looks like.
+- "Face photo" images: ${who}'s face, for try-on pictures.
+- "3 - Trips and outfits.txt" (if present): trips and outfits already planned.
+
+ABOUT ${who.toUpperCase()}
+A ${person}.${profile.build?` Build: ${profile.build}.`:""}
+
+PLANNING A TRIP
+When ${who} describes a trip (places, dates, plans):
+1. Give one outfit per day (or a day and an evening outfit if asked), covering every day, travel days included.
+2. Use ONLY pieces from the catalog. Name each piece with its ID and short description, e.g. "OW-003 navy wool overcoat".
+3. Make every outfit complete and right for the typical weather of that place and season: top layer(s), trousers, shoes, and outerwear when cold or wet.
+4. Pack light: repeat shoes, outerwear and trousers across days where it looks good.
+5. End with a packing list (IDs) and a short "worth buying" list: if an outfit needs a piece ${who} doesn't own or owns poorly, search the web and suggest one specific item with a link to a real retailer, and say why.
+
+TRY-ON PICTURES
+When ${who} asks to see an outfit on him or her (for example "show me day 2"), make one photorealistic image:
+- Two panels side by side in one wide 3:2 image. Left: full length, walking toward the camera. Right: full-length three-quarter back view, same outfit, same place.
+- WHO: the ${person} in the face photos. Keep the identity exactly: face shape, nose, eyes, eyebrows, hairline, hair color and texture, skin tone and texture, age, lines and marks. Do NOT make ${who} younger, slimmer, more chiseled or more attractive. No beauty retouching or smoothing.
+- CLOTHES: only the outfit's pieces, exactly as in the closet sheet photos (find each by its ID label). Match color, fabric texture, collar, buttons and zips, pockets, length and fit. Do not redesign, recolor, add logos or patterns, or swap in similar items. No extra accessories.
+- SETTING: a real, recognizable spot at that place, natural light, 35mm editorial street-style photograph, no text in the image.
+
+CORRECTIONS
+If ${who} says a piece is described wrong (for example "OW-003 is black, not navy"), use the correction from then on and remind ${who} to fix it in the wardrobe app too.
+
+Keep answers short and practical. Ask a question only when something important is missing.`;
+}
+async function exportForChatGPT(){
+  const m=$("#moreMsg"), say=(t,c="")=>{if(m){m.className="msg "+c;m.innerHTML=t}};
+  if(!items.length) return say("Add some clothes first.","err");
+  const order=catNames(), list=items.slice().sort((a,b)=>(order.indexOf(a.category)-order.indexOf(b.category))||a.id.localeCompare(b.id,undefined,{numeric:true}));
+  const files=[], PER=20, COLS=5, CW=360, IH=360, LH=74, HEAD=64, total=Math.ceil(list.length/PER);
+  const q=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  const csv=[["ID","Category","Description","Color","Brand","Fabric","Size / fit","Notes"].join(","),...list.map(it=>[it.id,catLabel(it.category),it.name,it.color,it.brand,it.material,it.size,it.notes].map(q).join(","))].join("\n");
+  for(let n=0;n<total;n++){
+    say(`<span class="spin"></span>Making closet sheet ${n+1} of ${total}…`);
+    const chunk=list.slice(n*PER,(n+1)*PER), rows=Math.ceil(chunk.length/COLS);
+    const c=document.createElement("canvas"); c.width=COLS*CW; c.height=HEAD+rows*(IH+LH); const g=c.getContext("2d");
+    g.fillStyle="#fff"; g.fillRect(0,0,c.width,c.height);
+    const cats=[...new Set(chunk.map(it=>catLabel(it.category)))].join(", ");
+    g.fillStyle="#1f1d1a"; g.font="600 30px Helvetica, Arial, sans-serif"; g.fillText(`${profile.name}'s closet, sheet ${n+1} of ${total}: ${cats} (${chunk[0].id} to ${chunk[chunk.length-1].id})`,20,42);
+    for(const [i,it] of chunk.entries()){
+      const x=(i%COLS)*CW, y=HEAD+Math.floor(i/COLS)*(IH+LH), src=(it.photos||[])[0]||thumbOf(it);
+      g.strokeStyle="#ddd"; g.strokeRect(x+.5,y+.5,CW-1,IH+LH-1);
+      if(src){try{const im=await loadImg(src),k=Math.min((CW-16)/im.width,(IH-16)/im.height);g.drawImage(im,x+(CW-im.width*k)/2,y+(IH-im.height*k)/2,im.width*k,im.height*k)}catch(e){}}
+      g.fillStyle="#1f1d1a"; g.font="700 28px Helvetica, Arial, sans-serif"; g.fillText(it.id,x+12,y+IH+30);
+      g.font="20px Helvetica, Arial, sans-serif"; g.fillStyle="#555"; let t=[it.color,it.name].filter(Boolean).join(" ");
+      while(t.length>3&&g.measureText(t).width>CW-24) t=t.slice(0,-2); if(t!==[it.color,it.name].filter(Boolean).join(" ")) t=t.replace(/\s*\S?$/,"…");
+      g.fillText(t,x+12,y+IH+60);
+    }
+    files.push(await canvasFile(c,`Closet sheet ${String(n+1).padStart(2,"0")}.jpg`));
+  }
+  const tg=allTrips(); let tripsTxt="";
+  if(outfits.length){
+    const line=o=>`- ${o.name}${o.plan?` (${o.plan})`:""}: ${(o.itemIds||[]).map(id=>{const it=itemById(id);return it?`${id} ${[it.color,it.name].filter(Boolean).join(" ")}`:id}).join("; ")}`;
+    tripsTxt=tg.map(t=>`TRIP: ${t.name}${t.where?` - ${t.where}`:""}\n${t.summary?t.summary+"\n":""}${tripOutfits(t).map(line).join("\n")}`).join("\n\n");
+    const every=outfits.filter(o=>!o.trip&&!o.tripId); if(every.length) tripsTxt+=`\n\nEVERYDAY OUTFITS\n${every.map(line).join("\n")}`;
+  }
+  const head=[new File([gptInstructions(`${total} sheet${total===1?"":"s"}`)],"1 - Instructions (paste into the project).txt",{type:"text/plain"}),new File([csv],"2 - Catalog.csv",{type:"text/csv"})];
+  if(tripsTxt.trim()) head.push(new File([tripsTxt.trim()],"3 - Trips and outfits.txt",{type:"text/plain"}));
+  const facesF=[]; for(const [i,f] of faces.slice(0,3).entries()) facesF.push(new File([await dataURLtoBlob(await shrink(f.data,1400))],`Face photo ${i+1}.jpg`,{type:"image/jpeg"}));
+  const all=[...head,...files,...facesF];
+  try{navigator.clipboard.writeText(gptInstructions(`${total} sheets`)).catch(()=>{})}catch(e){}
+  const how=`<b>${all.length} files ready.</b> In ChatGPT: Projects, New project, name it Wardrobe. Open its settings, paste into <b>Instructions</b> (already copied), then <b>Add files</b> and pick all ${all.length}.${faces.length?"":" Tip: add photos of your face first (More, Photos) so try-on can use them."}`;
+  if(navigator.canShare&&navigator.canShare({files:all})){
+    say(`Choose <b>Save to Files</b> and make a folder called Wardrobe for ChatGPT.`);
+    try{await navigator.share({files:all});say(how,"ok")}catch(e){if(e.name!=="AbortError")say("Couldn't save the files ("+e.message+").","err");else say(how)}
+  } else {
+    for(const f of all){const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();a.remove();await new Promise(r=>setTimeout(r,250))}
+    say(how,"ok");
+  }
+}
 function exportCSV(){
   const extraKeys=[...new Set(items.flatMap(it=>Object.keys(it.extra||{})))];
   const head=["ID","Category","Description","Color","Brand","Fabric / material","Size / fit","Notes","Photo filenames","Photos in app","Last updated",...extraKeys];
