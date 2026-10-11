@@ -145,11 +145,10 @@ del{color:var(--danger)} ins{color:var(--ok);text-decoration:none;font-weight:60
 .banner .x{margin-left:auto;min-height:0;padding:2px 8px;border:0;background:none;color:var(--muted)}
 /* home */
 .logo{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
-body.home{padding-bottom:0}
-body.home .top,body.home .tabbar{display:none}
+body.home .top{display:none}
 body.home main{padding-top:0}
 body.home{background-image:repeating-linear-gradient(90deg,color-mix(in srgb,var(--gold) 8%,transparent) 0 1px,transparent 1px 14px)}
-#tab-home{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 36px) 12px calc(env(safe-area-inset-bottom) + 24px)}
+#tab-home{min-height:calc(100vh - var(--tabh) - 12px);min-height:calc(100dvh - var(--tabh) - 12px - env(safe-area-inset-bottom));display:flex;flex-direction:column;max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 36px) 12px 12px}
 #tab-home[hidden]{display:none}
 .brand{display:flex;flex-direction:column;align-items:center;gap:10px;background:none;border:0;min-height:0;padding:4px;margin:0 auto;color:var(--gold)}
 .brand .logo{width:56px;height:56px}
@@ -291,8 +290,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
       <button class="mi gold" data-home="add"><i>iv</i><span class="t">Add clothes</span></button>
     </div></nav>
     <div id="homeStart"><div id="start"></div></div>
-    <div class="homefoot"><div id="nextTrip"></div>
-      <button class="dots" data-home="more" aria-label="More"><svg viewBox="0 0 24 24" class="ic"><circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/></svg></button></div>
+    <div class="homefoot"><div id="nextTrip"></div></div>
   </section>
 
   <section id="tab-closet" hidden>
