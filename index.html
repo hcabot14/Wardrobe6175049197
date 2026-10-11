@@ -284,9 +284,8 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
     <div id="banner"></div>
     <button class="brand" id="brandBtn" aria-label="Switch wardrobe"><svg viewBox="0 0 64 64" class="logo" aria-hidden="true"><path d="M27.3 15.2 A5.2 5.2 0 1 1 32 18.2 V22.5"/><path d="M32 22.5 L11.5 36.2 C9.6 37.5 10.4 40 12.6 40 H51.4 C53.6 40 54.4 37.5 52.5 36.2 Z"/></svg><span id="brandName">Wardrobe</span></button>
     <nav class="menu" aria-label="Main"><div class="in">
-      <button class="mi" data-home="closet"><i>i</i><span class="t">Closet</span></button>
-      <button class="mi" data-home="trips"><i>ii</i><span class="t">Trips</span><span class="n" id="hn-trips"></span></button>
-      <button class="mi gold" data-home="add"><i>iii</i><span class="t">Add clothes</span></button>
+      <button class="mi" data-home="closet"><span class="t">Closet</span></button>
+      <button class="mi" data-home="trips"><span class="t">Trips</span><span class="n" id="hn-trips"></span></button>
     </div></nav>
     <div id="homeStart"><div id="start"></div></div>
     <div class="homefoot"><div id="nextTrip"></div></div>
@@ -296,16 +295,16 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
     <div class="toolrow">
       <div class="search"><svg viewBox="0 0 24 24" class="ic"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="q" placeholder="Search"></div>
       <button class="fixbtn iconbtn" data-go="add" aria-label="Add clothes"><svg viewBox="0 0 24 24" class="ic" style="width:20px;height:20px"><path d="M12 5v14M5 12h14"/></svg></button>
-      <button class="fixbtn" id="openFix"><svg viewBox="0 0 24 24" class="ic"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>Fix</button>
+      <button class="fixbtn" id="openFix"><svg viewBox="0 0 24 24" class="ic"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>Chat</button>
     </div>
-    <div class="chips" id="chips"></div>
+    <div class="row"><button class="small" id="categoriesBtn">Manage categories</button><label class="toggle" style="margin:0"><input type="checkbox" id="showArchived"> Show archived</label></div><div class="chips" id="chips"></div>
     <div id="cats"></div>
   </section>
 
   <section id="tab-outfits" hidden></section>
 
   <section id="tab-add" hidden>
-    <h2 class="page">Add clothes</h2>
+    <button class="link" data-go="closet">← Back to Closet</button><h2 class="page">Add clothes</h2>
     <div class="panel addhero">
       <p id="addIntro"></p>
       <label class="btn primary big" style="margin:6px 0 0;display:inline-flex">
@@ -513,8 +512,8 @@ async function start(){
 /* ================= smart features (OpenAI) ================= */
 const AI_DEFAULTS={key:"",gkey:"",gModel:"",textModel:"gpt-4.1-mini",imageModel:"gpt-image-1",quality:"high"};
 const ai=()=>({...AI_DEFAULTS,...LS.get("wardrobe-ai",{})});
-const hasAI=()=>!!(ai().key||ai().gkey); // text features: a free Gemini key or an OpenAI key
-const hasOpenAI=()=>!!ai().key;           // try-on pictures made in the app need OpenAI
+const hasAI=()=>false; // Subscription handoff only; model API calls disabled.
+const hasOpenAI=()=>false; // Try-on is handed off to ChatGPT.
 function friendlyAIError(status,msg){
   if(status===401) return "OpenAI didn't accept your key. Check it under More → Smart features.";
   if(status===429) return /quota|billing|credit/i.test(msg)?"Your OpenAI account is out of credit. Add some at platform.openai.com → Billing.":"OpenAI is busy right now. Wait a moment and try again.";
@@ -651,20 +650,20 @@ function matchesQuery(it){
 }
 function render(){
   const cs=catNames(), counts={}; for(const c of cs) counts[c]=0;
-  for(const it of items) counts[it.category]=(counts[it.category]||0)+1;
+  for(const it of items.filter(x=>!!x.archived===!!$("#showArchived").checked)) counts[it.category]=(counts[it.category]||0)+1;
   if(activeCat!=="All"&&!cs.includes(activeCat)) activeCat="All";
   $("#chips").innerHTML=["All",...cs].map(c=>`<button class="chip ${c===activeCat?"on":""}" data-cat="${esc(c)}">${esc(c==="All"?"All":catLabel(c))}</button>`).join("")+`<button class="chip" data-addcat aria-label="Add or change categories">+</button>`;
   if(!items.length){$("#cats").innerHTML=`<div class="empty">No clothes yet. <button class="link" data-go="add">Add some</button></div>`;return}
   const cats=activeCat==="All"?cs:[activeCat];
   let html="";
   for(const c of cats){
-    const list=items.filter(it=>it.category===c&&matchesQuery(it)).sort((a,b)=>String(a.id).localeCompare(String(b.id),undefined,{numeric:true}));
+    const list=items.filter(it=>it.category===c&&!!it.archived===!!$("#showArchived").checked&&matchesQuery(it)).sort((a,b)=>String(a.id).localeCompare(String(b.id),undefined,{numeric:true}));
     if(activeCat==="All"&&!list.length) continue;
     html+=`<div class="cat"><h3>${esc(catLabel(c))} <span>${list.length}</span></h3>`;
     html+=list.length?`<div class="grid">${list.map(card).join("")}</div>`:`<div class="empty">Nothing here yet.</div>`;
     html+=`</div>`;
   }
-  if(activeCat!=="All"&&counts[activeCat]) html+=`<div class="row" style="justify-content:center;margin:26px 0 8px"><button class="danger small" data-bulkdel="${esc(activeCat)}">Delete all ${counts[activeCat]} ${esc(catLabel(activeCat))}</button></div>`;
+  if(false) html+=`<div class="row" style="justify-content:center;margin:26px 0 8px"><button class="danger small" data-bulkdel="${esc(activeCat)}">Delete all ${counts[activeCat]} ${esc(catLabel(activeCat))}</button></div>`;
   if(!html) html=`<div class="empty">Nothing matches “${esc(query)}”.</div>`;
   $("#cats").innerHTML=html;
 }
@@ -672,7 +671,7 @@ function card(it){
   const p=thumbOf(it);
   return `<button class="card" data-id="${esc(it.id)}">
     <div class="thumb">${p?`<img loading="lazy" src="${p}" alt="">`:"No photo yet"}</div>
-    <div class="meta"><div class="nm">${esc(it.name||"Untitled")}</div>
+    <div class="meta"><div class="nm">${esc(it.name||"Untitled")}</div><div class="sub">${esc(it.id)}${it.archived?" · Archived":""}</div>
     <div class="sub">${esc((it.brand&&!/^unconfirmed$/i.test(it.brand)?it.brand:"")||it.color||catLabel(it.category))}</div></div></button>`;
 }
 function renderStart(){
@@ -721,7 +720,7 @@ function renderItem(first){
       ${FIELDS.map(([k,l])=>`<div class="${k==="name"||k==="notes"?"full":""}"><label>${l}</label>${k==="notes"?`<textarea id="f_${k}" rows="2">${esc(it[k])}</textarea>`:`<input id="f_${k}" value="${esc(it[k])}">`}</div>`).join("")}
     </div>
     ${extras.length?`<details><summary>More details (${extras.length})</summary><div class="form2">${extras.map(([k,v])=>`<div><label>${esc(k)}</label><input data-extra="${esc(k)}" value="${esc(v)}"></div>`).join("")}</div></details>`:""}
-    <div class="row"><button class="primary" data-act="save">Save edits</button><button class="danger right" data-act="delete">Delete</button></div>
+    <div class="row"><button class="primary" data-act="save">Save edits</button><button data-archive="${esc(it.id)}">${it.archived?"Restore to closet":"Archive / sold"}</button><button class="danger right" data-act="delete">Delete</button></div>
     <details ${it.history&&it.history.some(h=>h.changes.length)?"open":""}><summary>History (${(it.history||[]).length})</summary>
     <ul class="hist">${(it.history||[]).slice().reverse().map((h,ri)=>histLine(h,(it.history.length-1-ri))).join("")||`<li class="muted">No changes yet.</li>`}</ul></details>`;
   if(first) openSheet(html); else {const st=$("#sheet").scrollTop;$("#sheet").innerHTML=`<div class="grabber"></div>`+html;$("#sheet").scrollTop=st}
@@ -867,9 +866,9 @@ function proposeChanges(it,p){
 }
 function localFix(text,fixedItem){
   const p=parseCorrection(text);
-  if(!p.to) return {mode:"one",options:[],message:"I couldn't tell what to change."+(hasAI()?"":" Turn on smart features (More tab) and I'll understand any wording; without them, try “it's listed as navy but it is black”.")};
+  if(!p.to) return {mode:"one",options:[],message:"I couldn't tell what to change."+(hasAI()?"":" Try “it's listed as navy but it is black”.")};
   const options=findCandidates(text,p,fixedItem).map(it=>({it,changes:proposeChanges(it,p)})).filter(c=>c.changes.length).slice(0,6);
-  if(!options.length) return {mode:"one",options,message:`I couldn't find ${p.from?`“${p.from}” on `:""}${fixedItem?"this piece":"a piece matching that"}.`+(hasAI()?"":" Turn on smart features (More tab) for looser wording, or include the item's ID.")};
+  if(!options.length) return {mode:"one",options,message:`I couldn't find ${p.from?`“${p.from}” on `:""}${fixedItem?"this piece":"a piece matching that"}.`+(hasAI()?"":" Include the item's ID, or use Discuss in ChatGPT / Claude for more complex changes.")};
   return {mode:"one",options,message:""};
 }
 const FIELD_ALIASES={name:"name",description:"name",desc:"name",title:"name",color:"color",colour:"color",brand:"brand",maker:"brand",material:"material",fabric:"material",size:"size",fit:"size",notes:"notes",note:"notes",category:"category"};
@@ -957,7 +956,7 @@ async function addFromPhotos(files){
       try{made.push(...await aiSort(photos.slice(i,i+B),group))}
       catch(e){st.className="msg err";st.textContent=e.message+" Fill these in by hand below.";made.push(...photos.slice(i,i+B).map(p=>blankDraft([p])))}
     }
-  } else made=photos.map(p=>blankDraft([p]));
+  } else made=group?[blankDraft(photos)]:photos.map(p=>blankDraft([p]));
   drafts.push(...made);
   if(!st.classList.contains("err")){st.className="msg ok";st.textContent=`${made.length} piece${made.length===1?"":"s"} ready. Check the details and save.`+(errs.length?` ${errs.length} photo(s) couldn't be opened.`:"")}
   renderDrafts();
@@ -1196,7 +1195,7 @@ function openOutfitEditor(o){
     <div class="picker" id="pickGrid"></div>
     <div class="row"><button class="primary" id="oeSave">Save outfit</button>${isNew?"":`<button class="danger right" id="oeDelete">Delete outfit</button>`}</div><div class="msg err" id="oeErr"></div>`,{wide:true});
   const draw=()=>{
-    const pool=items.filter(it=>!q||[it.id,it.name,it.color,it.brand,it.category].join(" ").toLowerCase().includes(q.toLowerCase()))
+    const pool=items.filter(it=>!it.archived).filter(it=>!q||[it.id,it.name,it.color,it.brand,it.category].join(" ").toLowerCase().includes(q.toLowerCase()))
       .sort((a,b)=>(sel.includes(b.id)-sel.includes(a.id))||layerRank(a.category)-layerRank(b.category)||a.id.localeCompare(b.id,undefined,{numeric:true}));
     $("#pickGrid").innerHTML=pool.slice(0,300).map(it=>`<button class="pick ${sel.includes(it.id)?"on":""}" data-pick="${esc(it.id)}">${thumbOf(it)?`<img loading="lazy" src="${thumbOf(it)}" alt="">`:""}<div class="t">${esc(it.name||it.id)}</div></button>`).join("")||`<div class="muted">No matches.</div>`;
     $("#pickCount").textContent=`${sel.length} piece${sel.length===1?"":"s"} picked`;
@@ -1361,7 +1360,7 @@ function renderMore(){
     ["wardrobes","Wardrobes",wardSub()],
     ["cats","Categories",`${catNames().length}`],
     ["you",`Photos of ${profile.name}`,faces.length?`${faces.length} photo${faces.length===1?"":"s"}`:"None yet"],
-    ["ai","Smart features",hasAI()?"On":"Off"],
+    ["ai","ChatGPT & Claude","Your subscriptions"],
     ["sync","Sync",syncSub()],
     ["data","Import & backup",""],
     ["history","Every change",""]
@@ -1851,7 +1850,7 @@ async function applyRows(rows,localByCloud,status){
       const store=STORE[r.kind]; if(!store) continue;
       if(r.kind==="log"){if(!r.deleted&&!logs.has(r.id)){const {seq,...x}=r.data;await dPut(d,"log",x);logs.add(r.id);n++}if(!r.deleted)seen.push(["log:"+r.id,STAMP.log(r.data)||"-"]);continue}
       const loc=await dGet(d,store,r.id);
-      if(r.deleted){if(loc&&STAMP[r.kind](loc)<=r.data.at){await dDel(d,store,r.id);n++}continue}
+      if(r.deleted){if(loc&&STAMP[r.kind](loc)<=(r.data.at||r.data.updatedAt||r.updated_at)){await dDel(d,store,r.id);n++}continue}
       const t=await dGet(d,"meta","del:"+r.kind+":"+r.id); if(t&&t.at>STAMP[r.kind](r.data)) continue;
       if(!loc||STAMP[r.kind](r.data)>STAMP[r.kind](loc)){status(`Bringing in changes… ${++n}`);await dPut(d,store,await fromCloud(r.kind,r.data,loc))}
       if(!loc||STAMP[r.kind](r.data)>=STAMP[r.kind](loc)) seen.push([r.kind+":"+r.id,STAMP[r.kind](r.data)||"-"]);
@@ -2011,7 +2010,7 @@ function renderHeader(){
 let tab="home";
 function showTab(t){
   if(t==="outfits") t="trips"; // outfits live under Trips now
-  tab=t; document.body.classList.toggle("home",t==="home"); document.querySelectorAll(".tabbar button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
+  tab=t; document.body.classList.toggle("home",t==="home"); document.querySelectorAll(".tabbar button").forEach(b=>b.classList.toggle("on",b.dataset.tab===(t==="add"?"closet":t)));
   for(const x of ["home","closet","outfits","add","trips","more"]) $("#tab-"+x).hidden=x!==t;
   refreshTab(); window.scrollTo(0,0);
 }
@@ -2071,6 +2070,9 @@ $("#planBtn").onclick=planTrip;
 $("#tripList").onclick=e=>{const c=e.target.closest("[data-trip]");if(c)openTrip(c.dataset.trip)};
 if("serviceWorker" in navigator&&location.protocol==="https:") navigator.serviceWorker.register("sw.js").catch(()=>{});
 
+</script>
+<script src="workflow.js"></script>
+<script>
 start().catch(err=>{
   document.querySelector("main").innerHTML=`<div class="panel msg err">This browser blocked storage, so the app can't save anything (${esc(err.message)}). Open it in Safari or Chrome, outside a private window.</div>`;
 });
