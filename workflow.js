@@ -1,11 +1,9 @@
 /* Subscription workflow: no model API calls. Existing records and sync stay intact. */
 'use strict';
-const APP_RELEASE='28';
-// iOS app launch stays directly on the user's tap. Explicit web fallback avoids
-// delayed redirects firing when the user returns from ChatGPT.
+const APP_RELEASE='29';
+// Use the website entry point rather than an undocumented native-app URL.
 function chatGPTLinks(){
- const ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
- return ios?'<a class="btn" href="com.openai.chat://">Open ChatGPT app</a><a class="link" href="https://chatgpt.com/" target="_blank" rel="noopener">Use website</a>':'<a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Open ChatGPT</a>';
+ return '<a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Open ChatGPT</a>';
 }
 const activeItems=()=>items.filter(it=>!it.archived&&!it.mergedInto);
 const dayISO=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
@@ -134,11 +132,14 @@ function connectedRequest(t){return `Please continue planning my saved wardrobe 
 function copyRequestPanel(t,out,files){
  const text=connectedRequest(t),preparedAt=t.handoff.preparedAt,faceVersion=faceSignature();
  const fresh=()=>{if(faceSignature()!==faceVersion||snapshotId()!==t.snapshotId||trips.find(x=>x.id===t.id)?.handoff?.preparedAt!==preparedAt)throw new Error('The wardrobe or request changed. Tap Continue to prepare fresh photos.');};
- out.innerHTML=`<p class="msg ok">Ready: ${t.handoff.photoAttachments.length} wardrobe sheets and ${t.handoff.faceAttachments.length} face references. Attach all ${files.length} images and paste the request into ChatGPT. It will plan, research purchases, render, and return the complete lookbook for review here.</p><div class="row"><button class="primary" data-copytrip>1 · Copy request</button><button data-sharephotos>2 · Share references</button><button data-downloadphotos>Download references</button>${chatGPTLinks()}</div><p class="muted sm">On desktop, download and unzip the photos, then attach all JPEGs to the same message as the request. If sharing does not open ChatGPT, use the downloaded photos. If an upload limit is reached, attach the remaining sheets before asking for a plan.</p><div data-copyresult class="msg"></div><details><summary>For Claude or a chat without the wardrobe connection</summary><button data-filefallback>Prepare files</button><div data-fallbackout></div></details>`;
- out.querySelector('[data-copytrip]').onclick=async()=>{const el=out.querySelector('[data-copyresult]');try{fresh();try{await navigator.clipboard.writeText(text);el.textContent='Copied. Attach all photo sheets and paste this request into ChatGPT.'}catch{el.innerHTML='<p>Press and hold to copy:</p><textarea readonly aria-label="Trip request"></textarea>';el.querySelector('textarea').value=text}}catch(err){el.textContent=err.message}};
- out.querySelector('[data-sharephotos]').onclick=async()=>{const el=out.querySelector('[data-copyresult]');try{fresh();if(navigator.canShare&&navigator.canShare({files}))await navigator.share({files,text});else el.textContent='File sharing is unavailable here. Use Download photos, unzip, then attach all JPEGs in ChatGPT.'}catch(err){if(err.name!=='AbortError')el.textContent=err.message}};
- out.querySelector('[data-downloadphotos]').onclick=async e=>{e.currentTarget.disabled=true;try{fresh();const zip=await zipFiles(files);fresh();saveBlob(zip,'Wardrobe-photos-'+t.snapshotId+'.zip')}catch(err){out.querySelector('[data-copyresult]').textContent=err.message}finally{e.currentTarget.disabled=false}};
- const check=document.createElement('button');check.textContent='Check for finished plan';check.onclick=()=>checkReturnedPlans(true);out.prepend(check);
+ const packet=[new File([text],'Start-here.txt',{type:'text/plain'}),...files];
+ const shareable=!!(navigator.canShare&&navigator.canShare({files:packet}));
+ out.innerHTML=`<p class="muted sm">Your trip and photos are ready.</p><button class="primary" data-sendtrip>${shareable?'Send to ChatGPT':'Download trip packet'}</button><p class="muted sm">${shareable?'Choose ChatGPT and send everything in a new chat.':'Unzip the packet. In a new Wardrobe App chat, attach all files and send “Follow Start-here.txt.”'}</p><div data-copyresult class="msg" role="status"></div><details><summary>Other options</summary><div class="row"><button data-copytrip>Copy request</button><button data-downloadphotos>Download packet</button>${chatGPTLinks()}<button data-checkplan>Check for finished lookbook</button></div><button data-filefallback>Prepare for Claude or another chat</button><div data-fallbackout></div></details>`;
+ const download=async e=>{const b=e.currentTarget;b.disabled=true;try{fresh();const zip=await zipFiles(packet);fresh();saveBlob(zip,'Wardrobe-trip-'+t.snapshotId+'.zip');out.querySelector('[data-copyresult]').textContent='Downloaded. Attach the unzipped files to a new Wardrobe App chat.'}catch(err){out.querySelector('[data-copyresult]').textContent=err.message}finally{b.disabled=false}};
+ out.querySelector('[data-sendtrip]').onclick=shareable?async()=>{try{fresh();await navigator.share({files:packet,text})}catch(err){if(err.name!=='AbortError')out.querySelector('[data-copyresult]').textContent=err.message+' Open Other options to download the packet.'}}:download;
+ out.querySelector('[data-copytrip]').onclick=async()=>{const el=out.querySelector('[data-copyresult]');try{fresh();try{await navigator.clipboard.writeText(text);el.textContent='Copied. Paste into the same message as the photos.'}catch{el.innerHTML='<p>Press and hold to copy:</p><textarea readonly aria-label="Trip request"></textarea>';el.querySelector('textarea').value=text}}catch(err){el.textContent=err.message}};
+ out.querySelector('[data-downloadphotos]').onclick=download;
+ out.querySelector('[data-checkplan]').onclick=()=>checkReturnedPlans(true);
  out.querySelector('[data-filefallback]').onclick=async e=>{e.currentTarget.disabled=true;const el=out.querySelector('[data-fallbackout]');el.textContent='Preparing…';try{fresh();handoffPanel(await requestFiles(planningPrompt(t,t.snapshotId)),el,'Files ready.')}catch(err){el.textContent=err.message}finally{e.currentTarget.disabled=false}};
 }
 let handoffWorking=false;
