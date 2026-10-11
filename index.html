@@ -1026,9 +1026,9 @@ function renderOutfitView(first){
         <div class="row">
           <button class="primary" data-oact="tryon" ${busy?"disabled":""}>${busy?`<span class="spin"></span>Making the picture…`:(o.renders||[]).length?"Try on again":"Try on"}</button>
           ${r?`<button class="small" data-oact="dl">Save image</button><button class="small danger" data-oact="rmrender">Remove</button>`:""}
-          <button class="small right" data-oact="edit">Edit</button>
+          <button class="small right" data-oact="edit">Edit</button><button class="small danger" data-oact="del">Delete</button>
         </div>
-        <div id="tryonMsg" class="msg">${!hasAI()?"Turn on smart features in the More tab to try outfits on.":!faces.length?"Add a few photos of your face in the More tab first.":missing.length?`Not in your closet, so left out: ${esc(missing.join(", "))}.`:""}</div>
+        <div id="tryonMsg" class="msg">${!hasAI()?"Try on needs your OpenAI key. Tap Try on to add it.":!faces.length?"Add a few photos of your face in the More tab first.":missing.length?`Not in your closet, so left out: ${esc(missing.join(", "))}.`:""}</div>
         ${(o.renders||[]).length>1?`<div class="prev">${o.renders.map((x,i)=>`<img src="${x.image}" data-ri="${i}" class="${i===shownRender?"on":""}" alt="">`).join("")}</div>`:""}
         ${o.note?`<p class="sm" style="margin:12px 0 0">${esc(o.note)}</p>`:""}
         ${o.scene?`<details><summary>Place</summary><p class="sm">${esc(o.scene)}${o.weather?` · ${esc(o.weather)}`:""}</p></details>`:""}
@@ -1043,7 +1043,7 @@ function renderOutfitView(first){
 }
 async function runTryOn(o){
   const s=ai(), msg=()=>$("#tryonMsg");
-  if(!s.key){closeModal(true);showTab("more");return}
+  if(!s.key){closeModal(true);showTab("more");openPanel("ai");toast("Try on needs your OpenAI key. Paste it here, then try again.");return}
   if(!faces.length){msg().className="msg err";msg().textContent="Add a few photos of your face in the More tab first.";return}
   const ps=outfitPieces(o).filter(p=>p.it);
   if(!ps.length){msg().className="msg err";msg().textContent="This outfit has no pieces from your closet.";return}
@@ -1112,6 +1112,7 @@ $("#sheet").addEventListener("click",async e=>{
   const b=e.target.closest("[data-oact]"); if(!b) return;
   const o=outfits.find(x=>x.id===openOutfitId), a=b.dataset.oact;
   if(a==="tryon") runTryOn(o);
+  if(a==="del"){if(!confirm(`Delete the outfit “${o.name}” and its try-on pictures? Your clothes stay in the closet.`))return;await tx("outfits","readwrite",s=>s.delete(o.id));await tomb("outfit",o.id);outfits=outfits.filter(x=>x.id!==o.id);toast("Outfit deleted");closeModal(true)}
   if(a==="edit") openOutfitEditor(o);
   if(a==="item") openItem(b.dataset.id);
   if(a==="dl"){const r=o.renders[shownRender];const el=document.createElement("a");el.href=r.image;el.download=`${o.name.replace(/[^\w-]+/g,"-")}-tryon.jpg`;el.click()}
