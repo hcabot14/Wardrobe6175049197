@@ -1,6 +1,6 @@
 /* Subscription workflow: no model API calls. Existing records and sync stay intact. */
 'use strict';
-const APP_RELEASE='22';
+const APP_RELEASE='23';
 const activeItems=()=>items.filter(it=>!it.archived&&!it.mergedInto);
 const dayISO=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const validDate=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&!isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s;
@@ -93,18 +93,21 @@ function copyRequestPanel(t,out){const text=connectedRequest(t);out.innerHTML='<
  out.querySelector('[data-copytrip]').onclick=async()=>{try{await navigator.clipboard.writeText(text);out.querySelector('[data-copyresult]').textContent='Copied. Switch to our Wardrobe App chat and paste.'}catch{const el=out.querySelector('[data-copyresult]');el.innerHTML='<p>Press and hold to copy:</p><textarea readonly aria-label="Trip request"></textarea>';el.querySelector('textarea').value=text}};
  out.querySelector('[data-filefallback]').onclick=async e=>{e.currentTarget.disabled=true;const el=out.querySelector('[data-fallbackout]');el.textContent='Preparing…';try{handoffPanel(await requestFiles(planningPrompt(t,t.snapshotId)),el,'Files ready.')}catch(err){el.textContent=err.message}finally{e.currentTarget.disabled=false}};
 }
+let handoffWorking=false;
+const baseSetSync=setSync;
+setSync=function(text,err){baseSetSync(text,err);if(handoffWorking&&$('#planMsg'))$('#planMsg').textContent=text};
+async function waitForSync(){let last=syncState.text,lastProgress=Date.now();while(syncing){if(syncState.text!==last){last=syncState.text;lastProgress=Date.now()}if(handoffWorking)$('#planMsg').textContent=syncState.text||'Finishing sync…';if(Date.now()-lastProgress>90000)throw new Error('Sync stopped making progress. Your trip is saved. Check More → Sync for the error.');await new Promise(r=>setTimeout(r,200))}}
 async function syncHandoff(t,expectedWardrobe){
- const deadline=Date.now()+45000;while(syncing&&Date.now()<deadline)await new Promise(r=>setTimeout(r,200));if(syncing)throw new Error('Sync is still busy. Try again shortly.');
- await syncNow();if(syncState.err)throw new Error('Request saved on this device. '+(syncState.text||'Sync did not finish.')+' Try Continue again after this is resolved.');if(profile.cloudId!==expectedWardrobe)throw new Error('The selected wardrobe changed. Please try again.');
- const rows=await api(`/rest/v1/records?select=data&wardrobe=eq.${encodeURIComponent(expectedWardrobe)}&kind=eq.trip&id=eq.${encodeURIComponent(t.id)}&deleted=eq.false`);
- if(!rows?.some(r=>r.data?.handoff?.preparedAt===t.handoff.preparedAt))throw new Error('The request has not finished syncing. Try Continue again.');
+ await waitForSync();await syncNow();await waitForSync();if(syncState.err)throw new Error('Request saved on this device. '+(syncState.text||'Sync did not finish.'));if(profile.cloudId!==expectedWardrobe)throw new Error('The selected wardrobe changed. Please try again.');
+ const rows=await api(`/rest/v1/records?select=data->handoff->preparedAt&wardrobe=eq.${encodeURIComponent(expectedWardrobe)}&kind=eq.trip&id=eq.${encodeURIComponent(t.id)}&deleted=eq.false`);
+ if(!rows?.some(r=>r.preparedAt===t.handoff.preparedAt||r.data?.handoff?.preparedAt===t.handoff.preparedAt))throw new Error('The request has not finished syncing. Try Continue again.');
  if(snapshotId()!==t.snapshotId)throw new Error('The wardrobe changed during sync. Tap Continue to refresh the references.');
 }
-planTrip=async function(){const m=$('#planMsg'),b=$('#planBtn');b.disabled=true;try{if(!activeItems().length)throw new Error('Add clothes in Closet first.');const t=await saveBrief(),id=snapshotId();
+planTrip=async function(){const m=$('#planMsg'),b=$('#planBtn');b.disabled=true;handoffWorking=true;try{await waitForSync();if(!activeItems().length)throw new Error('Add clothes in Closet first.');const t=await saveBrief(),id=snapshotId();
  if(!session||!cloudReady()||!profile.cloudId){m.textContent='Sign in under More → Sync for a file-free handoff, or use the files below.';handoffPanel(await requestFiles(planningPrompt(t,id)),$('#requestFiles'),'File fallback');t.snapshotId=id;t.updatedAt=now();await putTrip(t);return}
- const wardrobe=profile.cloudId;m.textContent='Preparing and syncing your wardrobe references…';const photoSheets=[];await photoPDF(activeItems(),async f=>photoSheets.push(await blobData(f)));if(id!==snapshotId())throw new Error('The wardrobe changed while preparing. Tap Continue again.');
+ const wardrobe=profile.cloudId;const cached=trips.find(x=>x.snapshotId===id&&x.handoff?.photoReferences?.length);if(cached){t.snapshotId=id;t.handoff={version:2,preparedAt:now(),catalog:catalogSnapshot(),photoReferences:structuredClone(cached.handoff.photoReferences),instructions:planningPrompt(t,id).replaceAll('attached','saved').replaceAll('Current-wardrobe.json','data.handoff.catalog')};t.updatedAt=now();await putTrip(t);await syncHandoff(t,wardrobe);copyRequestPanel(t,$('#requestFiles'));m.textContent='';return}m.textContent='Preparing and syncing your wardrobe references…';const photoSheets=[];await photoPDF(activeItems(),async f=>photoSheets.push(await blobData(f)));if(id!==snapshotId())throw new Error('The wardrobe changed while preparing. Tap Continue again.');
  t.snapshotId=id;t.handoff={version:1,preparedAt:now(),catalog:catalogSnapshot(),photoSheets,instructions:planningPrompt(t,id).replaceAll('attached','saved').replaceAll('Current-wardrobe.json','data.handoff.catalog')};t.updatedAt=now();await putTrip(t);await syncHandoff(t,wardrobe);requestReady={tripId:t.id,snapshotId:id};copyRequestPanel(t,$('#requestFiles'));m.textContent='';$('#replyDetails').open=false;
- }catch(e){m.textContent=e.message}finally{b.disabled=false}};
+ }catch(e){m.textContent=e.message}finally{handoffWorking=false;b.disabled=false}};
 $('#planBtn').onclick=()=>planTrip();
 renderTrips=function(){const list=allTrips(),section=(title,ts)=>`<h3 class="grouph">${title}</h3>${ts.length?ts.map(t=>`<button class="tcard panel" data-trip="${esc(t.id)}" ${canSwipeDraft(t)?'data-swipe-draft="true" style="touch-action:pan-y"':''}><span class="ico">${ICON.trip}</span><span><div class="nm">${esc(t.name)}</div><div class="muted sm">${esc(t.startDate||'Dates not set')}${t.endDate?' – '+esc(t.endDate):''} · ${tripOutfits(t).length} outfits${t.status==='draft'?' · Draft':''}</div></span></button>`).join(''):'<p class="muted sm">No journeys here yet.</p>'}`;$('#tripList').innerHTML=section('Upcoming & current',list.filter(t=>!isPastTrip(t)))+`<details><summary>Past trips (${list.filter(isPastTrip).length})</summary>${section('Past journeys',list.filter(isPastTrip))}</details>`};
 function validatePlan(r){
@@ -150,8 +153,11 @@ exportForChatGPT=async function(){const out=$('#moreMsg');out.textContent='Prepa
 
 // Keep image bytes out of the trip JSON: small, resumable private reference rows.
 function splitReferenceSheets(t){return (t.handoff.photoSheets||[]).map((text,sheet)=>{const hash=cyrb(text),chunks=[];for(let part=0,at=0;at<text.length;part++,at+=60000)chunks.push({id:`ref-${t.id}-${hash}-${sheet}-${part}`,data:{sheet,part,text:text.slice(at,at+60000)}});return {sheet,hash,chunks}})}
+const normalToCloud=toCloud;
+toCloud=function(kind,x,uploads){if(kind==='trip'&&x.handoff?.photoSheets?.length)throw new Error('REFERENCE_PENDING');return normalToCloud(kind,x,uploads)};
 const normalPushWardrobe=pushWardrobe;
 pushWardrobe=async function(d,cloudId,status){
+ for(let pass=0;pass<10;pass++){
  for(const trip of await getAll('trips',d)){
   if(!trip.handoff?.photoSheets?.length)continue;
   const sheets=splitReferenceSheets(trip),rows=sheets.flatMap(s=>s.chunks);let done=0;
@@ -162,7 +168,8 @@ pushWardrobe=async function(d,cloudId,status){
   latest.handoff.photoReferences=sheets.map(s=>({sheet:s.sheet,hash:s.hash,chunkIds:s.chunks.map(c=>c.id)}));delete latest.handoff.photoSheets;latest.handoff.version=2;latest.updatedAt=now();await dPut(d,'trips',latest);
   if(d===db){const i=trips.findIndex(t=>t.id===latest.id);if(i>=0)trips[i]=latest}
  }
- return normalPushWardrobe(d,cloudId,status);
+ try{return await normalPushWardrobe(d,cloudId,status)}catch(e){if(e.message!=='REFERENCE_PENDING')throw e}
+ }throw new Error('The wardrobe kept changing during sync. Let the current save finish, then retry.');
 };
 
 // Swipe dismissal is restricted to empty draft journeys. Planned trips never opt in.

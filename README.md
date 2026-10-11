@@ -4,7 +4,7 @@ A personal wardrobe app: catalog your clothes from photos, fix entries in plain 
 
 Open it at the GitHub Pages link for this repository.
 
-## Subscription workflow (v22)
+## Subscription workflow (v23)
 
 Home, Closet, Trips and More remain in one app. Add clothes is under Closet.
 The header has no profile photo; Everyday outfits is no longer shown.
@@ -41,3 +41,7 @@ conversation that has the connected Supabase tools (the owner's Wardrobe App
 conversation). No file download is needed. This does not automatically attach
 files or grant another chat access. Claude and unconnected chats retain the
 optional attachment workflow.
+
+Handoff preparation waits for active sync with visible progress. It reuses photo
+references for an unchanged wardrobe snapshot, and the upload serializer blocks
+embedded image bundles even if a trip changes while sync is in progress.
