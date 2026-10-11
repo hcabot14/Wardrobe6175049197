@@ -1,9 +1,11 @@
 /* Subscription workflow: no model API calls. Existing records and sync stay intact. */
 'use strict';
-const APP_RELEASE='30';
-// Use the website entry point rather than an undocumented native-app URL.
+const APP_RELEASE='31';
+// Restore the native iPhone route used in v24-v28. Launch directly on a tap.
+const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const chatGPTRoute=()=>isIOS()?'com.openai.chat://':'https://chatgpt.com/';
 function chatGPTLinks(){
- return '<a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Open ChatGPT</a>';
+ return isIOS()?'<a class="btn" href="com.openai.chat://">Open ChatGPT app</a><a class="link" href="https://chatgpt.com/" target="_blank" rel="noopener">Use website</a>':'<a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Open ChatGPT</a>';
 }
 const activeItems=()=>items.filter(it=>!it.archived&&!it.mergedInto);
 const dayISO=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
@@ -134,7 +136,11 @@ function copyRequestPanel(t,out,files){
  const fresh=()=>{if(faceSignature()!==faceVersion||snapshotId()!==t.snapshotId||trips.find(x=>x.id===t.id)?.handoff?.preparedAt!==preparedAt)throw new Error('The wardrobe or request changed. Tap Continue to prepare fresh photos.');};
  const packet=[new File([text],'Start-here.txt',{type:'text/plain'}),...files];
  const shareable=!!(navigator.canShare&&navigator.canShare({files}));
- out.innerHTML=`<p class="muted sm">Your trip and photos are ready.</p><button class="primary" data-sendtrip>${shareable?'Share with ChatGPT':'Download trip packet'}</button><p class="muted sm">${shareable?'Choose ChatGPT in the share sheet. If hidden, tap More in the app row.':'Unzip the packet. In a new Wardrobe App chat, attach all files and send “Follow Start-here.txt.”'}</p><div data-copyresult class="msg" role="status"></div><details><summary>Other options</summary><div class="row"><button data-copytrip>Copy request</button><button data-downloadphotos>Download packet</button>${chatGPTLinks()}<button data-checkplan>Check for finished lookbook</button></div><button data-filefallback>Prepare for Claude or another chat</button><div data-fallbackout></div></details>`;
+ out.innerHTML=`<p class="muted sm">Your trip and photos are ready.</p><a class="btn primary" href="${chatGPTRoute()}" ${isIOS()?'':'target="_blank" rel="noopener"'} data-routechat>Route to ChatGPT</a><p class="muted sm">Paste the request in your Wardrobe App chat. Attach the photos from Other options.</p><div data-copyresult class="msg" role="status"></div><details><summary>Other options</summary><div class="row"><button data-sendtrip>${shareable?'Share photos':'Download trip packet'}</button><button data-copytrip>Copy request</button><button data-downloadphotos>Download packet</button><a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Use website</a><button data-checkplan>Check for finished lookbook</button></div><button data-filefallback>Prepare for Claude or another chat</button><div data-fallbackout></div></details>`;
+ // Do not await clipboard work before following the native link: iOS needs
+ // navigation to remain on this user gesture. Copy failure stays visible here.
+ out.querySelector('[data-routechat]').onclick=e=>{const el=out.querySelector('[data-copyresult]');try{fresh();if(!navigator.clipboard?.writeText)throw new Error('Copy the request under Other options before continuing.');navigator.clipboard.writeText(text).then(()=>{el.textContent='Request copied. Paste it in ChatGPT with the photos.'}).catch(()=>{el.innerHTML='<p>Copy this request:</p><textarea readonly aria-label="Trip request"></textarea>';el.querySelector('textarea').value=text});}catch(err){e.preventDefault();el.textContent=err.message}};
+
  const download=async e=>{const b=e.currentTarget;b.disabled=true;try{fresh();const zip=await zipFiles(packet);fresh();saveBlob(zip,'Wardrobe-trip-'+t.snapshotId+'.zip');out.querySelector('[data-copyresult]').textContent='Downloaded. Attach the unzipped files to a new Wardrobe App chat.'}catch(err){out.querySelector('[data-copyresult]').textContent=err.message}finally{b.disabled=false}};
  out.querySelector('[data-sendtrip]').onclick=shareable?async()=>{try{fresh();await navigator.share({files,text})}catch(err){if(err.name!=='AbortError')out.querySelector('[data-copyresult]').textContent=err.message+' Open Other options to download the packet.'}}:download;
  out.querySelector('[data-copytrip]').onclick=async()=>{const el=out.querySelector('[data-copyresult]');try{fresh();try{await navigator.clipboard.writeText(text);el.textContent='Copied. Paste into the same message as the photos.'}catch{el.innerHTML='<p>Press and hold to copy:</p><textarea readonly aria-label="Trip request"></textarea>';el.querySelector('textarea').value=text}}catch(err){el.textContent=err.message}};
