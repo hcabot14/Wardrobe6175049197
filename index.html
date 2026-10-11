@@ -557,6 +557,10 @@ async function geminiChat(messages,maxTokens){ // Google's free tier; same JSON 
       if(!listed){listed=true;for(const m of await geminiModels()) if(!list.includes(m)) list.push(m)}
       continue}
     if(res.status===400&&/API key|API_KEY/i.test(msg)||res.status===403) throw new Error("Google didn't accept your Gemini key. Check it under More → Smart features.");
+    if(res.status===503||res.status===500||/overloaded|high demand|unavailable/i.test(msg)){ // busy: wait a moment, then try the next Flash model
+      lastErr=new Error("Google's free Gemini is busy right now. Wait a minute and try again.");
+      if(!listed){listed=true;for(const m of await geminiModels()) if(!list.includes(m)) list.push(m)}
+      await new Promise(r=>setTimeout(r,1500)); continue}
     if(res.status===429) throw new Error("You've hit Gemini's free limit for now. Wait a minute and try again.");
     throw new Error(msg);
   }
