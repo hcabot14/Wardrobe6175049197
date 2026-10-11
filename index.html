@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#f5f2ec" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#161513" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f7f4ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121110" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -12,33 +12,37 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
 <title>Wardrobe</title>
 <style>
 :root{
-  --bg:#f5f2ec; --surface:#ffffff; --surface-2:#ece7df; --text:#1e1c19; --muted:#6f695f;
-  --border:#e2dbcf; --accent:#2f4a3a; --accent-soft:#e3ece5; --accent-text:#ffffff; --danger:#a3352b; --ok:#2f6b3a;
-  --shadow:0 1px 2px rgba(30,25,15,.05),0 6px 22px rgba(30,25,15,.07); --tabh:58px;
+  --bg:#f7f4ee; --surface:#ffffff; --surface-2:#eee9df; --text:#1f1d1a; --muted:#6b665e;
+  --border:#e3ddd1; --accent:#1f1d1a; --accent-soft:#ece5d6; --accent-text:#f7f4ee; --gold:#86672d; --danger:#a3352b; --ok:#2f6b3a;
+  --shadow:0 1px 2px rgba(30,25,15,.04),0 8px 26px rgba(30,25,15,.06); --tabh:58px;
+  --serif:"Cormorant Garamond","Iowan Old Style",Georgia,serif;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#161513; --surface:#201e1b; --surface-2:#2b2925; --text:#ede9e2; --muted:#a59f95;
-    --border:#37332e; --accent:#93b8a0; --accent-soft:#25312a; --accent-text:#11201a; --danger:#e3806f; --ok:#8ac796; --shadow:none;
+    --bg:#121110; --surface:#1e1c1a; --surface-2:#2a2724; --text:#e8e2d6; --muted:#9b9488;
+    --border:#3a3631; --accent:#c9a96e; --accent-soft:#2b251b; --accent-text:#121110; --gold:#c9a96e; --danger:#e3806f; --ok:#8ac796; --shadow:none;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#161513; --surface:#201e1b; --surface-2:#2b2925; --text:#ede9e2; --muted:#a59f95;
-  --border:#37332e; --accent:#93b8a0; --accent-soft:#25312a; --accent-text:#11201a; --danger:#e3806f; --ok:#8ac796; --shadow:none;
+  --bg:#121110; --surface:#1e1c1a; --surface-2:#2a2724; --text:#e8e2d6; --muted:#9b9488;
+  --border:#3a3631; --accent:#c9a96e; --accent-soft:#2b251b; --accent-text:#121110; --gold:#c9a96e; --danger:#e3806f; --ok:#8ac796; --shadow:none;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom) + 12px)}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 "DM Sans",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Helvetica,Arial,sans-serif;padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom) + 12px)}
 body.locked{overflow:hidden}
-.top{position:sticky;top:0;z-index:5;background:var(--bg);background:color-mix(in srgb,var(--bg) 86%,transparent);-webkit-backdrop-filter:saturate(1.6) blur(16px);backdrop-filter:saturate(1.6) blur(16px);padding-top:env(safe-area-inset-top);border-bottom:1px solid var(--border)}
+.top{position:sticky;top:0;z-index:5;background:var(--bg);background:color-mix(in srgb,var(--bg) 86%,transparent);-webkit-backdrop-filter:saturate(1.6) blur(16px);backdrop-filter:saturate(1.6) blur(16px);padding-top:env(safe-area-inset-top)}
 .top .in{max-width:1100px;margin:0 auto;padding:8px 16px;display:flex;align-items:center;gap:10px}
 .who{display:flex;align-items:center;gap:9px;background:none;border:0;padding:4px 8px 4px 2px;border-radius:999px;font:inherit;color:var(--text);cursor:pointer;min-height:44px}
 .avatar{width:36px;height:36px;border-radius:50%;background:var(--accent);color:var(--accent-text);display:grid;place-items:center;font-weight:650;overflow:hidden;flex:0 0 auto;font-size:15px}
 .avatar img{width:100%;height:100%;object-fit:cover}
-.who .nm{font-weight:680;font-size:19px;letter-spacing:-.01em}
+.who .nm{font-family:var(--serif);font-weight:600;font-size:23px;letter-spacing:.01em}
 .who svg{width:16px;height:16px;color:var(--muted)}
 .grow{flex:1}
 .aiflag{font-size:12px;color:var(--muted);background:var(--surface-2);padding:4px 10px;border-radius:999px;border:0;font-family:inherit;cursor:pointer}
@@ -53,7 +57,7 @@ main{padding-top:14px}
 .tabbar .plus{width:40px;height:30px;border-radius:15px;background:var(--accent);color:var(--accent-text);display:grid;place-items:center}
 .tabbar .plus svg{width:20px;height:20px}
 .ic{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-h2.page{font-size:28px;letter-spacing:-.02em;margin:6px 0 12px;font-weight:720}
+h2.page{font-family:var(--serif);font-size:34px;letter-spacing:.005em;margin:6px 0 12px;font-weight:500;line-height:1.1}
 .pagehead{display:flex;align-items:center;gap:10px}
 .pagehead h2{margin-right:auto}
 button,.btn{font:inherit;font-size:15px;cursor:pointer;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:10px 14px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-align:center}
@@ -93,23 +97,42 @@ del{color:var(--danger)} ins{color:var(--ok);text-decoration:none;font-weight:60
 .msg:empty{display:none}
 .msg.err{color:var(--danger)} .msg.ok{color:var(--ok)}
 /* closet */
-.search{position:relative;margin-bottom:10px}
-.search input{padding-left:38px;border-radius:14px}
+.toolrow{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.toolrow .search{flex:1}
+.search{position:relative}
+.search input{background:var(--surface);border-color:var(--border)}
+.fixbtn{background:none;border-color:var(--border);border-radius:999px;font-weight:500;padding:10px 14px}
+.iconbtn{width:44px;padding:0;border-radius:50%;flex:0 0 auto}
+.fixbtn svg{width:18px;height:18px}
+.list{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.lrow{display:flex;align-items:center;gap:12px;width:100%;padding:13px 14px;background:none;border:0;border-radius:0;border-top:1px solid var(--border);color:var(--text);text-align:left;justify-content:flex-start;margin:0;font-size:16px;font-weight:400;cursor:pointer;min-height:52px}
+.lrow:first-child{border-top:0}
+.lrow .lic{width:30px;height:30px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex:0 0 auto}
+.lrow .lic svg{width:19px;height:19px}
+.lrow .lt{flex:1}
+.lrow .ls{color:var(--muted);font-size:14px}
+.lrow .chev{width:16px;height:16px;color:var(--muted)}
+.addface{display:grid;place-items:center;aspect-ratio:1;font-size:30px;color:var(--muted);cursor:pointer;margin:0;border:1.5px dashed var(--border);background:none}
+.aiflag.warn{color:var(--danger);background:color-mix(in srgb,var(--danger) 12%,transparent)}
+.avatar{position:relative}
+.avatar.syncing::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--accent);border-top-color:transparent;animation:sp 1s linear infinite}
+.search input{padding-left:38px;border-radius:999px}
 .search svg{position:absolute;left:12px;top:13px;width:18px;height:18px;color:var(--muted)}
 .chips{display:flex;gap:7px;overflow-x:auto;margin:0 -16px 12px;padding:2px 16px 4px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
-.chip{border-radius:999px;padding:6px 13px;font-size:14px;min-height:36px;background:var(--surface);border:1px solid var(--border);color:var(--text);white-space:nowrap;flex:0 0 auto}
-.chip.on{background:var(--text);color:var(--bg);border-color:var(--text)}
-.chip .n{opacity:.6;margin-left:5px}
-.cat h3{font-size:18px;margin:20px 0 10px;display:flex;align-items:baseline;gap:8px;letter-spacing:-.01em}
-.cat h3 span{color:var(--muted);font-weight:400;font-size:14px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;text-align:left;padding:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;min-height:0;color:var(--text)}
-.thumb{aspect-ratio:4/5;background:var(--surface-2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;overflow:hidden}
+.chip{border-radius:999px;padding:7px 15px;font-size:14px;min-height:36px;background:none;border:1px solid var(--border);color:var(--muted);white-space:nowrap;flex:0 0 auto}
+.chip.on{background:var(--accent);color:var(--accent-text);border-color:var(--accent);font-weight:600}
+.chip .n{display:none}
+.cat h3{font-family:var(--serif);font-size:26px;margin:24px 0 12px;display:flex;align-items:baseline;gap:10px;font-weight:500}
+.cat h3 span{font-family:"DM Sans",sans-serif;color:var(--muted);font-weight:400;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));min-width:0;gap:18px 12px}
+.card{min-width:0;background:none;border:0;border-radius:0;overflow:visible;cursor:pointer;text-align:left;padding:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;min-height:0;color:var(--text)}
+.thumb{aspect-ratio:4/5;background:var(--surface);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;overflow:hidden;border-radius:14px}
+.card:active .thumb{opacity:.85}
 .thumb img{width:100%;height:100%;object-fit:cover}
-.card .meta{padding:8px 10px 10px}
-.card .nm{font-weight:600;font-size:14px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.card .sub{color:var(--muted);font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .meta{padding:9px 2px 4px}
+.card .nm{font-weight:400;font-size:14px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .sub{color:var(--gold);font-size:11px;letter-spacing:.13em;text-transform:uppercase;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .empty{color:var(--muted);padding:28px 0;text-align:center}
 .steps{counter-reset:s;list-style:none;padding:0;margin:8px 0 0}
 .steps li{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--border)}
@@ -119,6 +142,31 @@ del{color:var(--danger)} ins{color:var(--ok);text-decoration:none;font-weight:60
 .steps .tx{flex:1;font-size:15px}
 .banner{display:flex;gap:10px;align-items:flex-start;background:var(--accent-soft);border-radius:14px;padding:12px 14px;margin-bottom:12px;font-size:14px}
 .banner .x{margin-left:auto;min-height:0;padding:2px 8px;border:0;background:none;color:var(--muted)}
+/* home */
+#tab-home{min-height:calc(100vh - 150px - env(safe-area-inset-top) - env(safe-area-inset-bottom));min-height:calc(100dvh - 150px - env(safe-area-inset-top) - env(safe-area-inset-bottom));display:flex;flex-direction:column;justify-content:center;max-width:620px;margin:0 auto;padding:8px 0 24px}
+#tab-home[hidden]{display:none}
+#tab-home.has-out{justify-content:flex-start}
+.hello{font-family:var(--serif);font-weight:500;font-size:40px;line-height:1.1;text-align:center;margin:0 0 26px}
+.composer{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:14px 12px 10px 16px;box-shadow:var(--shadow)}
+.composer textarea{border:0;background:none;padding:2px 0;min-height:52px;max-height:160px;resize:none;border-radius:0;font-size:17px}
+.composer textarea:focus{outline:none}
+.composer .bar{display:flex;align-items:center;gap:8px;margin-top:6px}
+.composer .cam{width:40px;height:40px;min-height:40px;border-radius:50%;padding:0;background:none;color:var(--muted);margin:0}
+.composer .cam svg,.composer .send svg{width:19px;height:19px}
+.composer .send{width:40px;height:40px;min-height:40px;margin-left:auto}
+.sugg{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:18px}
+.sugg button{border-radius:999px;min-height:38px;padding:6px 15px;font-size:14px;background:none;color:var(--text)}
+#homeOut{margin-top:16px}
+#homeOut:empty{display:none}
+.answer{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:14px 16px}
+.answer .you{color:var(--muted);font-size:14px;margin-bottom:8px}
+.answer .txt{white-space:pre-wrap}
+.answer .picks{display:flex;gap:8px;overflow-x:auto;margin-top:12px;padding-bottom:2px}
+.answer .picks button{flex:0 0 auto;width:92px;padding:0;border:0;background:none;display:block;min-height:0;text-align:left;color:var(--text)}
+.answer .picks img,.answer .picks .noimg{width:92px;height:115px;object-fit:cover;border-radius:10px;display:block;background:var(--surface-2)}
+.answer .picks span{display:block;font-size:12px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#homeStart{margin-top:22px}
+#homeStart:empty{display:none}
 /* sheets */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;align-items:flex-end;justify-content:center;z-index:20;padding-top:max(env(safe-area-inset-top),20px)}
 .modal.open{display:flex}
@@ -126,7 +174,7 @@ del{color:var(--danger)} ins{color:var(--ok);text-decoration:none;font-weight:60
 .sheet.wide{max-width:1120px}
 @keyframes up{from{transform:translateY(40px)}to{transform:none}}
 .shead{position:sticky;top:0;z-index:2;background:var(--bg);display:flex;align-items:flex-start;gap:10px;padding:14px 0 10px;margin-bottom:4px}
-.shead h2{margin:0;font-size:21px;letter-spacing:-.01em}
+.shead h2{margin:0;font-family:var(--serif);font-size:26px;font-weight:600;line-height:1.15}
 .shead .sub{font-size:13px;color:var(--muted)}
 .shead .x{margin-left:auto;width:36px;height:36px;min-height:36px;border-radius:50%;padding:0;background:var(--surface-2);border:0;color:var(--muted);font-size:18px;flex:0 0 auto}
 .grabber{width:40px;height:5px;border-radius:3px;background:var(--border);margin:8px auto 0}
@@ -164,7 +212,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
 .choice.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);background:var(--accent-soft)}
 .welcome .wicon{width:64px;height:64px;border-radius:18px;background:var(--accent);color:var(--accent-text);display:grid;place-items:center;margin:18px 0 10px}
 .welcome .wicon svg{width:36px;height:36px}
-.welcome h2{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
+.welcome h2{font-family:var(--serif);font-size:32px;font-weight:500;margin:0 0 6px}
 /* add from photos */
 .addhero{text-align:center;padding:26px 16px}
 .addhero .big{font-size:17px;padding:14px 22px;border-radius:16px;min-height:54px}
@@ -211,10 +259,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
 @media (max-width:760px){.olayout{grid-template-columns:1fr}}
 @media (max-width:560px){
   .form2{grid-template-columns:1fr}
-  .grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 12px}
   .olist{grid-template-columns:1fr}
   .photos img{height:220px}
-  h2.page{font-size:26px}
+  h2.page{font-size:31px}
 }
 </style>
 </head>
@@ -222,21 +270,37 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
 <header class="top"><div class="in">
   <button class="who" id="whoBtn" aria-label="Switch wardrobe"><span class="avatar" id="avatar"></span><span class="nm" id="whoName">Wardrobe</span><svg viewBox="0 0 24 24" class="ic"><path d="m6 9 6 6 6-6"/></svg></button>
   <span class="grow"></span>
-  <button class="aiflag" id="syncFlag" hidden></button>
-  <button class="aiflag" id="aiFlag"></button>
+  <button class="aiflag warn" id="syncFlag" hidden></button>
 </div></header>
 
 <main class="wrap">
   <div id="notice"></div>
-  <section id="tab-closet">
+  <section id="tab-home">
     <div id="banner"></div>
-    <div id="start"></div>
-    <div class="ask">
-      <div class="t">Something wrong? Just say it.</div>
-      <div class="askrow"><textarea id="fixText" rows="1" placeholder="The grey Zegna coat is actually black"></textarea><button class="send" id="fixBtn" aria-label="Check"><svg viewBox="0 0 24 24" class="ic"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
-      <div id="fixOut" class="preview"></div>
+    <h1 class="hello" id="hello">Hello</h1>
+    <div class="composer">
+      <textarea id="homeText" rows="2" placeholder="Ask about your clothes, plan a trip, or fix a mistake" aria-label="Ask about your wardrobe"></textarea>
+      <div class="bar">
+        <label class="btn cam" aria-label="Add photos of clothes"><svg viewBox="0 0 24 24" class="ic"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><input type="file" id="homePhotos" accept="image/*" multiple hidden></label>
+        <button class="send" id="homeSend" aria-label="Send"><svg viewBox="0 0 24 24" class="ic" style="stroke-width:2.2"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+      </div>
     </div>
-    <div class="search"><svg viewBox="0 0 24 24" class="ic"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="q" placeholder="Search your closet"></div>
+    <div class="sugg" id="sugg">
+      <button data-ask="What should I wear today?">What should I wear today?</button>
+      <button data-home="trips">Plan a trip</button>
+      <button data-home="add">Add new pieces</button>
+      <button data-home="fix">Fix a mistake</button>
+    </div>
+    <div id="homeOut"></div>
+    <div id="homeStart"><div id="start"></div></div>
+  </section>
+
+  <section id="tab-closet" hidden>
+    <div class="toolrow">
+      <div class="search"><svg viewBox="0 0 24 24" class="ic"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="q" placeholder="Search"></div>
+      <button class="fixbtn iconbtn" data-go="add" aria-label="Add clothes"><svg viewBox="0 0 24 24" class="ic" style="width:20px;height:20px"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="fixbtn" id="openFix"><svg viewBox="0 0 24 24" class="ic"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>Fix</button>
+    </div>
     <div class="chips" id="chips"></div>
     <div id="cats"></div>
   </section>
@@ -282,9 +346,9 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
 </main>
 
 <nav class="tabbar"><div class="in">
-  <button data-tab="closet" class="on"><svg viewBox="0 0 24 24" class="ic"><path d="M10 6.2a2 2 0 1 1 2.6 1.9c-.4.2-.6.5-.6.9v1"/><path d="M12 10 3.4 16.4c-.8.6-.4 1.6.5 1.6h16.2c.9 0 1.3-1 .5-1.6Z"/></svg>Closet</button>
+  <button data-tab="home" class="on"><svg viewBox="0 0 24 24" class="ic"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/></svg>Home</button>
+  <button data-tab="closet"><svg viewBox="0 0 24 24" class="ic"><path d="M10 6.2a2 2 0 1 1 2.6 1.9c-.4.2-.6.5-.6.9v1"/><path d="M12 10 3.4 16.4c-.8.6-.4 1.6.5 1.6h16.2c.9 0 1.3-1 .5-1.6Z"/></svg>Closet</button>
   <button data-tab="outfits"><svg viewBox="0 0 24 24" class="ic"><path d="M8.5 3.5 4 6 2.5 10.5l3 1.1V20.5h13v-8.9l3-1.1L20 6l-4.5-2.5c-.6 1.6-2 2.5-3.5 2.5s-2.9-.9-3.5-2.5Z"/></svg>Outfits</button>
-  <button data-tab="add"><span class="plus"><svg viewBox="0 0 24 24" class="ic" style="stroke-width:2.4"><path d="M12 5v14M5 12h14"/></svg></span>Add</button>
   <button data-tab="trips"><svg viewBox="0 0 24 24" class="ic"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5.2c0-.7.5-1.2 1.2-1.2h3.6c.7 0 1.2.5 1.2 1.2V7M3 12.5h18"/></svg>Trips</button>
   <button data-tab="more"><svg viewBox="0 0 24 24" class="ic"><circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/></svg>More</button>
 </div></nav>
@@ -541,8 +605,7 @@ function render(){
   for(const it of items) counts[it.category]=(counts[it.category]||0)+1;
   if(activeCat!=="All"&&!cs.includes(activeCat)) activeCat="All";
   $("#chips").innerHTML=["All",...cs.filter(c=>counts[c]||activeCat===c)].map(c=>`<button class="chip ${c===activeCat?"on":""}" data-cat="${esc(c)}">${esc(c==="All"?"All":catLabel(c))}<span class="n">${c==="All"?items.length:counts[c]}</span></button>`).join("");
-  renderStart();
-  if(!items.length){$("#cats").innerHTML="";return}
+  if(!items.length){$("#cats").innerHTML=`<div class="empty">No clothes yet. <button class="link" data-go="add">Add some</button></div>`;return}
   const cats=activeCat==="All"?cs:[activeCat];
   let html="";
   for(const c of cats){
@@ -561,12 +624,12 @@ function card(it){
   return `<button class="card" data-id="${esc(it.id)}">
     <div class="thumb">${p?`<img loading="lazy" src="${p}" alt="">`:"No photo yet"}</div>
     <div class="meta"><div class="nm">${esc(it.name||"Untitled")}</div>
-    <div class="sub">${esc([it.color,it.brand].filter(Boolean).join(" · ")||it.id)}</div></div></button>`;
+    <div class="sub">${esc((it.brand&&!/^unconfirmed$/i.test(it.brand)?it.brand:"")||it.color||catLabel(it.category))}</div></div></button>`;
 }
 function renderStart(){
   const isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent)&&!navigator.standalone&&/^https?:/.test(location.protocol);
   $("#banner").innerHTML=isIOS&&!LS.get("wardrobe-nobanner",false)?`<div class="banner"><div><b>Install it on your iPhone.</b> Tap the Share button, then “Add to Home Screen”. Your closet stays safer there and opens like an app.</div><button class="x" data-nobanner aria-label="Dismiss">✕</button></div>`:"";
-  if(items.length>=3&&faces.length&&hasAI()){$("#start").innerHTML="";return}
+  if(items.length>=3){$("#start").innerHTML="";return}
   const steps=[
     [hasAI(),"Turn on smart features","Sorting, fixes in plain words, trip plans and try-on","ai"],
     [faces.length>0,"Add a few photos of your face","So try-on looks like you","faces"],
@@ -578,13 +641,14 @@ function renderStart(){
 /* ================= sheet ================= */
 let openId=null, openOutfitId=null, openTripId=null, sheetLocked=false;
 function openSheet(html,{wide=false,locked=false}={}){
+  openPanelKey=null;
   $("#sheet").className="sheet"+(wide?" wide":""); $("#sheet").innerHTML=`<div class="grabber"></div>`+html;
   sheetLocked=locked; $("#modal").classList.add("open"); document.body.classList.add("locked"); $("#sheet").scrollTop=0;
 }
 function closeModal(force){
   if(sheetLocked&&!force) return;
   sheetLocked=false; $("#modal").classList.remove("open"); document.body.classList.remove("locked");
-  openId=null;openOutfitId=null;openTripId=null;
+  openId=null;openOutfitId=null;openTripId=null;openPanelKey=null;
   refreshTab();
 }
 const shead=(title,sub)=>`<div class="shead"><div style="min-width:0"><h2>${esc(title)}</h2>${sub?`<div class="sub">${esc(sub)}</div>`:""}</div><button class="x" data-close aria-label="Close">✕</button></div>`;
@@ -820,7 +884,7 @@ function showFixPlan(plan,text,out,fixedItem,note){
     if(!picked.length) return;
     for(const c of picked){c.changes.forEach(ch=>setField(c.it,ch.field,ch.to)); await recordChange(c.it,c.changes,"fix",text)}
     const done=`<div class="msg ok">Saved${picked.length>1?` ${picked.length} changes`:`. ${esc(picked[0].it.id)} now reads: ${esc(label(picked[0].it))}`}. You can undo it from the piece's history.</div>`;
-    if(fixedItem){renderItem();$("#itemFixOut").innerHTML=done} else {$("#fixText").value="";render();$("#fixOut").innerHTML=done}
+    if(fixedItem){renderItem();$("#itemFixOut").innerHTML=done} else {if(out.id==="fixOut")$("#fixText").value="";else $("#homeText").value="";if(tab==="closet")render();out.innerHTML=done}
   };
 }
 
@@ -1143,91 +1207,123 @@ $("#sheet").addEventListener("click",async e=>{
 });
 
 /* ================= more: wardrobes, faces, smart features, data ================= */
-async function renderMore(){
+/* More: a short list; each row opens its own sheet */
+let openPanelKey=null;
+const MORE_ICON={
+  wardrobes:`<svg viewBox="0 0 24 24" class="ic"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.2 3-5 6-5s5.4 1.8 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14c2.6.2 4 1.8 4.5 4.5"/></svg>`,
+  you:`<svg viewBox="0 0 24 24" class="ic"><rect x="3.5" y="5.5" width="17" height="14" rx="3"/><circle cx="12" cy="12" r="3.3"/><path d="M8.5 5.5 10 3.5h4l1.5 2"/></svg>`,
+  ai:`<svg viewBox="0 0 24 24" class="ic"><path d="M12 3.5 13.8 9 19.5 10.5 13.8 12 12 17.5 10.2 12 4.5 10.5 10.2 9Z"/><path d="M18.5 16v4M16.5 18h4"/></svg>`,
+  sync:`<svg viewBox="0 0 24 24" class="ic"><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.1 4.7 4.7 0 0 0 7 18.5Z"/></svg>`,
+  data:`<svg viewBox="0 0 24 24" class="ic"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M4.5 15.5v2.5c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2v-2.5"/></svg>`,
+  history:`<svg viewBox="0 0 24 24" class="ic"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>`
+};
+const syncSub=()=>!cloudReady()?"Not set up":!session?"Signed out":syncState.err?"Needs attention":"On";
+const wardSub=()=>profile.name+(profiles.length>1?` · ${profiles.length} wardrobes`:"");
+function renderMore(){
+  const rows=[
+    ["wardrobes","Wardrobes",wardSub()],
+    ["you",`Photos of ${profile.name}`,faces.length?`${faces.length} photo${faces.length===1?"":"s"}`:"None yet"],
+    ["ai","Smart features",hasAI()?"On":"Off"],
+    ["sync","Sync",syncSub()],
+    ["data","Import & backup",""],
+    ["history","Every change",""]
+  ];
+  $("#tab-more").innerHTML=`<h2 class="page">More</h2><div class="list">${rows.map(([k,t,sub])=>`<button class="lrow" data-panel="${k}"><span class="lic">${MORE_ICON[k]}</span><span class="lt">${esc(t)}</span><span class="ls">${esc(sub)}</span><svg viewBox="0 0 24 24" class="ic chev"><path d="m9 6 6 6-6 6"/></svg></button>`).join("")}</div>
+  <p class="muted sm" id="storageInfo" style="text-align:center;margin:16px 0 0"></p>`;
+  storageInfo();
+  loadProfiles().then(()=>{const r=$('[data-panel="wardrobes"] .ls');if(r)r.textContent=wardSub()});
+}
+function panelHTML(k){
   const s=ai();
-  $("#tab-more").innerHTML=`<h2 class="page">More</h2>
-  <div class="panel"><h3>Wardrobes</h3><p class="muted sm">Each wardrobe has its own clothes, outfits and face photos. They all stay on this device.</p>
+  if(k==="wardrobes") return `${shead("Wardrobes")}<p class="muted sm" style="margin-top:0">Each wardrobe has its own clothes, outfits and face photos.</p>
     <div class="plist" id="plist"><div class="muted sm">Loading…</div></div>
-    <div class="row"><button data-m="newwardrobe">+ Add a wardrobe</button></div></div>
-
-  <div class="panel" id="facesPanel"><h3>Photos of ${esc(profile.name)}</h3><p class="muted sm">Two or three clear, front-facing photos in good light. Try-on uses them so the pictures look like you.</p>
-    <label class="btn" style="display:inline-flex;margin:4px 0 0;color:var(--text)">+ Add face photos<input type="file" id="faceInput" accept="image/*" multiple hidden></label>
-    <div class="faces">${faces.map(f=>`<div class="face"><img src="${f.data}" alt=""><button data-rmface="${f.id}" aria-label="Remove">✕</button></div>`).join("")}</div>
-    <label for="m_build">Height and build (used in try-on)</label><input id="m_build" value="${esc(profile.build||"")}" placeholder="e.g. 5'7&quot;, slim">
+    <div class="row"><button data-m="newwardrobe">+ Add a wardrobe</button></div>`;
+  if(k==="you") return `${shead("Photos of "+profile.name)}<p class="muted sm" style="margin-top:0">Two or three clear, front-facing photos in good light, so try-on looks like you.</p>
+    <div class="faces">${faces.map(f=>`<div class="face"><img src="${f.data}" alt=""><button data-rmface="${f.id}" aria-label="Remove">✕</button></div>`).join("")}<label class="face addface" aria-label="Add face photos">+<input type="file" id="faceInput" accept="image/*" multiple hidden></label></div>
+    <label for="m_build">Height and build</label><input id="m_build" value="${esc(profile.build||"")}" placeholder="e.g. 5'7&quot;, slim">
     <div class="form2"><div><label for="m_name">Wardrobe name</label><input id="m_name" value="${esc(profile.name)}"></div>
     <div><label for="m_person">Try-on shows a</label><select id="m_person">${["man","woman","person"].map(p=>`<option ${p===profile.person?"selected":""}>${p}</option>`).join("")}</select></div></div>
-    <div class="row"><button data-m="saveprofile">Save</button></div></div>
-
-  <div class="panel" id="aiPanel"><h3>Smart features ${s.key?`<span class="aiflag on" style="vertical-align:2px;margin-left:6px">On</span>`:""}</h3>
-    <p class="muted sm">Sorting photos, fixes in your own words, trip plans and try-on use OpenAI with your own key. The key stays on this device. Photos and descriptions are sent to OpenAI only when you use one of these features.</p>
+    <div class="row"><button class="primary" data-m="saveprofile">Save</button></div>`;
+  if(k==="ai") return `${shead("Smart features",s.key?"On":"Off")}
+    <p class="muted sm" style="margin-top:0">Sorting photos, fixes in your own words, trip plans and try-on use OpenAI with your own key. The key stays on this device.</p>
     <label for="m_key">OpenAI API key</label><input id="m_key" type="password" autocomplete="off" value="${esc(s.key)}" placeholder="sk-…">
-    <div class="row"><button class="primary" data-m="savekey">Save key</button>${s.key?`<button data-m="testkey">Check it works</button><button class="danger small right" data-m="forgetkey">Remove key</button>`:""}</div>
+    <div class="row"><button class="primary" data-m="savekey">Save key</button>${s.key?`<button data-m="testkey">Check it works</button><button class="danger small right" data-m="forgetkey">Remove</button>`:""}</div>
     <div class="msg" id="keyMsg"></div>
     <details><summary>How do I get a key?</summary><ol class="sm" style="padding-left:18px;margin:6px 0">
       <li>Go to <b>platform.openai.com/api-keys</b> and sign in (a ChatGPT login works).</li>
-      <li>Tap <b>Create new secret key</b>, then copy it and paste it above.</li>
-      <li>Add a little credit under <b>Billing</b>. Sorting and fixes cost a fraction of a cent each; a try-on picture costs about 25 cents.</li></ol></details>
+      <li>Tap <b>Create new secret key</b>, copy it and paste it above.</li>
+      <li>Add a little credit under <b>Billing</b>. Sorting and fixes cost a fraction of a cent; a try-on picture about 25 cents.</li></ol></details>
     <details><summary>Advanced</summary><div class="form2">
       <div><label>Text and photo model</label><input id="m_tmodel" value="${esc(s.textModel)}"></div>
       <div><label>Try-on model</label><input id="m_imodel" value="${esc(s.imageModel)}"></div>
       <div><label>Try-on quality</label><select id="m_quality">${["high","medium","low"].map(x=>`<option ${x===s.quality?"selected":""}>${x}</option>`).join("")}</select></div>
-    </div><div class="row"><button class="small" data-m="savemodels">Save</button></div></details></div>
-
-  <div class="panel" id="syncPanel">${syncPanelHTML()}</div>
-
-  <div class="panel"><h3>Move a sync file by hand</h3>
-    <p class="muted sm">Works without an account: download a sync file here, send it to your other phone or computer (AirDrop, iCloud Drive, email), and open it there with “Merge a sync file”. Both sides keep their newest changes.</p>
-    <div class="row"><button data-m="backup">Download sync file</button><label class="btn" style="margin:0;color:var(--text)">Merge a sync file<input type="file" id="mergeInput" accept=".json,application/json" hidden></label></div></div>
-
-  <div class="panel"><h3>Import and backup</h3>
-    <div class="row" style="margin-top:4px">
-      <label class="btn small" style="margin:0;color:var(--text)">Import catalog files<input type="file" id="importInput" accept=".csv,.json,text/csv,application/json" multiple hidden></label>
-      <label class="btn small" style="margin:0;color:var(--text)">Attach photos by file name<input type="file" id="matchInput" accept="image/*,.heic,.HEIC" multiple hidden></label>
-      <label class="btn small" style="margin:0;color:var(--text)">Import outfits file<input type="file" id="outfitImport" accept=".json" hidden></label>
-      <button class="small" data-m="csv">Catalog as spreadsheet (CSV)</button>
-      <label class="btn small danger" style="margin:0">Replace everything from a backup<input type="file" id="restoreInput" accept=".json" hidden></label>
-      <button class="small" data-m="history">Every change</button>
-    </div>
-    <div class="msg" id="moreMsg"></div>
-    <p class="muted sm" id="storageInfo" style="margin:10px 0 0"></p></div>`;
-  storageInfo();
-  await loadProfiles();
-  const pl=$("#plist"); if(pl) pl.innerHTML=profiles.map(p=>`<button class="prow ${p.db===dbName?"on":""}" data-switch="${esc(p.db)}"><span class="avatar">${esc((p.name||"?")[0].toUpperCase())}</span><span><div class="nm">${esc(p.name)}</div><div class="muted sm">${p.count} piece${p.count===1?"":"s"}</div></span>${p.db===dbName?`<span class="tick">✓</span>`:""}</button>`).join("")+
+    </div><div class="row"><button class="small" data-m="savemodels">Save</button></div></details>`;
+  if(k==="sync") return `${shead("Sync")}<div id="syncPanel">${syncPanelHTML().replace(/^<h3>[^<]*<\/h3>/,"")}</div>
+    <details><summary>Move a sync file by hand</summary><p class="muted sm">No account needed: download a sync file, send it to your other device (AirDrop, iCloud Drive, email) and open it there with “Merge a sync file”.</p>
+    <div class="row"><button class="small" data-m="backup">Download sync file</button><label class="btn small" style="margin:0;color:var(--text)">Merge a sync file<input type="file" id="mergeInput" accept=".json,application/json" hidden></label></div></details>
+    <div class="msg" id="moreMsg"></div>`;
+  if(k==="data") return `${shead("Import & backup")}
+    <div class="list" style="margin-top:4px">
+      <label class="lrow"><span class="lt">Import catalog files</span><span class="ls">CSV or JSON</span><input type="file" id="importInput" accept=".csv,.json,text/csv,application/json" multiple hidden></label>
+      <label class="lrow"><span class="lt">Attach photos by file name</span><input type="file" id="matchInput" accept="image/*,.heic,.HEIC" multiple hidden></label>
+      <label class="lrow"><span class="lt">Import an outfits file</span><input type="file" id="outfitImport" accept=".json" hidden></label>
+      <button class="lrow" data-m="csv"><span class="lt">Download catalog as a spreadsheet</span></button>
+      <button class="lrow" data-m="backup"><span class="lt">Download a backup</span></button>
+      <label class="lrow"><span class="lt" style="color:var(--danger)">Replace everything from a backup</span><input type="file" id="restoreInput" accept=".json" hidden></label>
+    </div><div class="msg" id="moreMsg"></div>`;
+  return "";
+}
+async function fillPanel(){
+  if(openPanelKey!=="wardrobes") return;
+  await loadProfiles(); const pl=$("#plist"); if(!pl) return;
+  pl.innerHTML=profiles.map(p=>`<button class="prow ${p.db===dbName?"on":""}" data-switch="${esc(p.db)}"><span class="avatar">${esc((p.name||"?")[0].toUpperCase())}</span><span><div class="nm">${esc(p.name)}</div><div class="muted sm">${p.count} piece${p.count===1?"":"s"}</div></span>${p.db===dbName?`<span class="tick">✓</span>`:""}</button>`).join("")+
     (profiles.length>1?`<div class="row" style="margin-top:4px"><button class="danger small right" data-m="delwardrobe">Delete ${esc(profile.name)}'s wardrobe</button></div>`:"");
 }
-$("#tab-more").addEventListener("click",async e=>{
-  const sw=e.target.closest("[data-switch]"); if(sw){if(sw.dataset.switch!==dbName){await switchTo(sw.dataset.switch);toast("Switched to "+profile.name);showTab("closet")}return}
-  const rf=e.target.closest("[data-rmface]"); if(rf){if(!confirm("Remove this photo?"))return;await tx("faces","readwrite",s=>s.delete(rf.dataset.rmface));await tomb("face",rf.dataset.rmface);faces=faces.filter(x=>x.id!==rf.dataset.rmface);renderHeader();renderMore();return}
+function openPanel(k){
+  if(k==="history"){openHistory();return}
+  openId=null;openOutfitId=null;openTripId=null; openSheet(panelHTML(k)); openPanelKey=k; fillPanel();
+}
+function refreshMore(){
+  if(tab==="more") renderMore();
+  if(openPanelKey&&$("#modal").classList.contains("open")){const st=$("#sheet").scrollTop;$("#sheet").innerHTML=`<div class="grabber"></div>`+panelHTML(openPanelKey);$("#sheet").scrollTop=st;fillPanel()}
+}
+async function moreClick(e){
+  const pn=e.target.closest("[data-panel]"); if(pn){openPanel(pn.dataset.panel);return}
+  const sw=e.target.closest("[data-switch]"); if(sw){if(sw.dataset.switch!==dbName){closeModal(true);await switchTo(sw.dataset.switch);toast("Switched to "+profile.name);showTab("home")}return}
+  const rf=e.target.closest("[data-rmface]"); if(rf){if(!confirm("Remove this photo?"))return;await tx("faces","readwrite",s=>s.delete(rf.dataset.rmface));await tomb("face",rf.dataset.rmface);faces=faces.filter(x=>x.id!==rf.dataset.rmface);renderHeader();refreshMore();return}
   const b=e.target.closest("[data-m]"); if(!b) return; const a=b.dataset.m, km=$("#keyMsg");
   if(["savecloud","signin","signup","syncnow","signout"].includes(a)) return syncAction(a);
-  if(a==="newwardrobe") showWelcome({});
-  if(a==="saveprofile"){profile.name=$("#m_name").value.trim()||profile.name;profile.build=$("#m_build").value.trim();profile.person=$("#m_person").value;await putMeta();renderHeader();toast("Saved");renderMore()}
+  if(a==="newwardrobe"){openPanelKey=null;showWelcome({})}
+  if(a==="saveprofile"){profile.name=$("#m_name").value.trim()||profile.name;profile.build=$("#m_build").value.trim();profile.person=$("#m_person").value;await putMeta();renderHeader();toast("Saved");refreshMore()}
   if(a==="savekey"){const k=$("#m_key").value.trim();if(k&&!/^sk-/.test(k)){km.className="msg err";km.textContent="That doesn't look like an OpenAI key (they start with sk-).";return}
-    LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),key:k}); if(k){await renderMore();renderHeader();testKey()} else {renderMore();renderHeader()}}
+    LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),key:k}); refreshMore(); renderHeader(); if(k) testKey()}
   if(a==="testkey") testKey();
-  if(a==="forgetkey"){LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),key:""});renderHeader();renderMore();toast("Key removed")}
+  if(a==="forgetkey"){LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),key:""});renderHeader();refreshMore();toast("Key removed")}
   if(a==="savemodels"){LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),textModel:$("#m_tmodel").value.trim()||AI_DEFAULTS.textModel,imageModel:$("#m_imodel").value.trim()||AI_DEFAULTS.imageModel,quality:$("#m_quality").value});toast("Saved")}
   if(a==="backup") download(`${profile.name.replace(/[^\w-]+/g,"-")}-wardrobe-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({app:"henry-wardrobe",version:3,exportedAt:now(),profile,items,faces,log,outfits,trips}),"application/json");
   if(a==="csv") exportCSV();
-  if(a==="history") openHistory();
   if(a==="delwardrobe"){
     if(!confirm(`Delete ${profile.name}'s wardrobe from this device: ${items.length} pieces, outfits and photos? This can't be undone. (Download a sync file first if you might want it back.)`)) return;
     if(session&&cloudReady()&&profile.cloudId){try{await cloudDeleteWardrobe(profile.cloudId)}catch(e){if(!confirm("Couldn't remove it from your other devices ("+e.message+"). Delete it on this device anyway?"))return}}
+    closeModal(true);
     const gone=dbName; db.close(); db=null; await new Promise(r=>{const q=indexedDB.deleteDatabase(gone);q.onsuccess=q.onerror=q.onblocked=()=>r()}); forgetDB(gone);
     const rest=(await knownDBs()).filter(n=>n!==gone); toast("Deleted");
-    if(rest.length) {await switchTo(rest[0]);showTab("closet")} else showWelcome({first:true});
+    if(rest.length) {await switchTo(rest[0]);showTab("home")} else showWelcome({first:true});
   }
-});
-$("#tab-more").addEventListener("change",async e=>{
+}
+async function moreChange(e){
   const id=e.target.id, files=e.target.files; if(!files||!files.length) return;
-  if(id==="faceInput"){const errs=[];for(const file of files){try{const f={id:"face-"+rid(),data:await fileToDataURL(file,1600),label:"",addedAt:now()};await tx("faces","readwrite",s=>s.put(f));faces.push(f)}catch(err){errs.push(err.message)}}renderHeader();await renderMore();if(errs.length)alert(errs.join("\n"));return}
+  if(id==="faceInput"){const errs=[];for(const file of files){try{const f={id:"face-"+rid(),data:await fileToDataURL(file,1600),label:"",addedAt:now()};await tx("faces","readwrite",s=>s.put(f));faces.push(f)}catch(err){errs.push(err.message)}}renderHeader();refreshMore();if(errs.length)alert(errs.join("\n"));return}
   if(id==="importInput"){for(const f of files) await importFile(f);}
   if(id==="matchInput") await matchPhotos([...files]);
   if(id==="outfitImport") await importOutfits(files[0]);
   if(id==="restoreInput") await restore(files[0]);
   if(id==="mergeInput") await mergeSync(files[0]);
   e.target.value="";
-});
+}
+$("#tab-more").addEventListener("click",moreClick);
+$("#sheet").addEventListener("click",e=>{if(openPanelKey)moreClick(e)});
+$("#sheet").addEventListener("change",e=>{if(openPanelKey)moreChange(e)});
 async function testKey(){
   const km=$("#keyMsg"); if(!km) return; km.className="msg"; km.innerHTML=`<span class="spin"></span>Checking with OpenAI…`;
   try{const r=await aiChat([{role:"system",content:'Reply with JSON {"ok":true}.'},{role:"user",content:"ping"}],{maxTokens:50});km.className="msg ok";km.textContent=r&&r.ok?"Your key works. Smart features are on.":"OpenAI answered, so your key works."}
@@ -1509,8 +1605,10 @@ let syncing=false, syncAgain=false, syncTimer=null, syncState={text:"",err:false
 function scheduleSync(delay=4000){if(!session||!cloudReady())return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow(),delay)}
 function setSync(text,err){syncState={text,err:!!err};renderSyncFlag();const el=$("#syncStatus");if(el){el.className="msg"+(err?" err":"");el.textContent=text}}
 function renderSyncFlag(){
-  const f=$("#syncFlag"); if(!f) return; f.hidden=!(session&&cloudReady());
-  f.textContent=syncing?"Syncing…":syncState.err?"Not synced":"Synced"; f.classList.toggle("on",!syncing&&!syncState.err);
+  const f=$("#syncFlag"); if(!f) return; f.hidden=!(session&&cloudReady()&&syncState.err&&!syncing);
+  f.textContent="Not synced";
+  const av=$("#avatar"); if(av) av.classList.toggle("syncing",!!(session&&syncing));
+  if(tab==="more"&&!openPanelKey){const r=$('[data-panel="sync"] .ls');if(r)r.textContent=!cloudReady()?"Not set up":!session?"Signed out":syncState.err?"Needs attention":"On"}
 }
 async function syncNow(){
   if(!session||!cloudReady()) return;
@@ -1542,7 +1640,7 @@ async function syncNow(){
     if(res.changed.has(dbName)){await loadAll();profile=await dGet(db,"meta","profile");if(!$("#modal").classList.contains("open"))renderAll();else renderHeader()}
     if(res.added.length) toast(`Added from your other device: ${res.added.join(", ")}`);
     LS.set("wardrobe-lastsync",now()); syncing=false; setSync("Synced just now");
-    if(tab==="more"&&res.added.length) renderMore();
+    if(res.added.length) refreshMore();
   }catch(e){syncing=false;setSync(e.message==="offline"?"Offline. It will sync when you're back online.":"Sync problem: "+e.message,true)}
   syncing=false; renderSyncFlag();
   if(syncAgain){syncAgain=false;scheduleSync(1000)}
@@ -1554,12 +1652,12 @@ async function cloudDeleteWardrobe(cid){
 function syncPanelHTML(){
   const c=cloudCfg(), last=LS.get("wardrobe-lastsync",null);
   const setup=`<details ${cloudReady()?"":"open"}><summary>Sync service settings</summary><div class="form2"><div class="full"><label>Supabase project URL</label><input id="c_url" value="${esc(c.url)}" placeholder="https://xxxx.supabase.co"></div><div class="full"><label>Anon public key</label><input id="c_anon" value="${esc(c.anon)}" placeholder="eyJ…"></div></div><div class="row"><button class="small" data-m="savecloud">Save</button></div></details>`;
-  if(!cloudReady()) return `<h3>Sync across devices</h3><p class="muted sm">Automatic sync isn't connected in this copy of the app yet. Until it is, use the sync file below.</p>${setup}`;
-  if(!session) return `<h3>Sync across devices</h3><p class="muted sm">Sign in on each phone and computer you use. Every wardrobe on this device then stays the same everywhere, photos included. Only you can see your clothes.</p>
+  if(!cloudReady()) return `<p class="muted sm">Automatic sync isn't connected in this copy of the app yet. Until it is, use the sync file below.</p>${setup}`;
+  if(!session) return `<p class="muted sm">Sign in on each phone and computer you use. Every wardrobe on this device then stays the same everywhere, photos included. Only you can see your clothes.</p>
     <label for="c_email">Email</label><input id="c_email" type="email" autocomplete="email" inputmode="email">
     <label for="c_pw">Password</label><input id="c_pw" type="password" autocomplete="current-password">
     <div class="row"><button class="primary" data-m="signin">Sign in</button><button data-m="signup">Create account</button></div><div class="msg" id="syncStatus"></div>${setup}`;
-  return `<h3>Sync across devices</h3><p class="muted sm">Signed in as <b>${esc(session.email)}</b>. Changes sync by themselves${last?`; last synced ${esc(fmtDate(last))}`:""}.</p>
+  return `<p class="muted sm">Signed in as <b>${esc(session.email)}</b>. Changes sync by themselves${last?`; last synced ${esc(fmtDate(last))}`:""}.</p>
     <div class="row"><button data-m="syncnow">Sync now</button><button class="small right" data-m="signout">Sign out</button></div><div class="msg ${syncState.err?"err":""}" id="syncStatus">${esc(syncState.text)}</div>${setup}`;
 }
 async function syncAction(a){
@@ -1607,7 +1705,7 @@ function showWelcome({first=false,reuse=false}){
       try{keepSession(await authCall("token?grant_type=password",{email:$("#c_email").value.trim(),password:$("#c_pw").value}));await dClear(await syncDB(),"uploaded")}
       catch(e){st.className="msg err";st.textContent=e.message;return}
       await syncNow();
-      if(db&&profile){closeModal(true);showTab("closet")}
+      if(db&&profile){closeModal(true);showTab("home")}
       else if(!syncState.err){showWelcome({first,reuse});toast("No wardrobes in that account yet. Create one here.")}
     };
   };
@@ -1619,8 +1717,64 @@ function showWelcome({first=false,reuse=false}){
     const target=reuse?dbName:"wardrobe-p-"+rid();
     if(db){db.close();db=null}
     const d=await openDB(target); await new Promise((res,rej)=>{const t=d.transaction("meta","readwrite");t.objectStore("meta").put(newProfile(name,style,$("#w_build").value.trim()));t.oncomplete=res;t.onerror=()=>rej(t.error)}); d.close();
-    closeModal(true); await switchTo(target); showTab("closet");
+    closeModal(true); await switchTo(target); showTab("home");
   };
+}
+
+
+/* ================= home ================= */
+function renderHome(){
+  const h=new Date().getHours(), part=h<5?"evening":h<12?"morning":h<18?"afternoon":"evening";
+  $("#hello").textContent=`Good ${part}, ${profile.name}`;
+  $("#tab-home").classList.toggle("has-out",!!$("#homeOut").innerHTML.trim());
+  renderStart();
+}
+function homeShow(html){$("#homeOut").innerHTML=html;$("#tab-home").classList.toggle("has-out",!!html)}
+let homeSeq=0, homeLast=null;
+const looksLikeTrip=t=>/\b(trip|travel|travell?ing|vacation|holiday|pack|packing|flying|going to|heading to|visiting)\b/i.test(t);
+const looksLikeFix=t=>/\b(is actually|actually is|should be|should say|is wrong|wrongly|mislabel|isn'?t|is not|not \w+,? (it'?s|but)|change|rename|correct|it'?s really)\b/i.test(t);
+async function askHome(){
+  const text=$("#homeText").value.trim(); if(!text) return $("#homeText").focus();
+  const my=++homeSeq, you=`<div class="you">${esc(text)}</div>`;
+  if(!hasAI()){
+    if(looksLikeTrip(text)) return goTrip(text,"");
+    if(looksLikeFix(text)){homeShow(`<div class="answer">${you}<div id="homeFix" class="preview"></div></div>`);return runFix(text,$("#homeFix"))}
+    query=text; $("#q").value=text; activeCat="All"; showTab("closet");
+    if(!items.some(matchesQuery)) toast("Nothing matched. Turn on smart features to ask in your own words.");
+    return;
+  }
+  homeShow(`<div class="answer">${you}<div class="muted"><span class="spin"></span>Thinking…</div></div>`);
+  const rows=items.map(it=>[it.id,catLabel(it.category),[it.color,it.name].filter(Boolean).join(" "),it.brand].filter(Boolean).map(v=>String(v).replace(/[|\n]/g,"/")).join(" | "));
+  const sys=`You are the assistant inside a personal wardrobe app for ${profile.name}, a ${profile.person}${profile.build?` (${profile.build})`:""}. Today is ${new Date().toDateString()}.
+Decide what the message wants and return JSON {"action":"answer"|"outfit"|"fix"|"trip"|"find","reply":"short, warm, plain answer (1-4 sentences)","itemIds":["ids from the list"],"query":"search words","where":"trip places and dates","plans":"trip activities"}.
+- "fix": they say a piece's details are wrong (color, brand, name, category...). Just set action; the app handles it.
+- "trip": they want outfits planned for a trip with places/dates. Fill where and plans.
+- "outfit": they want something to wear (today, an occasion). Pick one complete outfit from the list (top, bottoms, shoes, plus outerwear if needed) in itemIds and explain briefly in reply.
+- "find": they want to see certain pieces. Put matching ids in itemIds (up to 24) and a reply like "Here are your navy pieces."
+- "answer": any other question about the wardrobe; answer it, citing relevant ids in itemIds.
+Use only ids from the list; never invent ids.`;
+  try{
+    const r=await aiChat([{role:"system",content:sys},{role:"user",content:`Message: ${text}\n\nWardrobe (${items.length} pieces: id | category | description | brand):\n${rows.join("\n")}`}],{maxTokens:1500});
+    if(my!==homeSeq) return;
+    const act=String(r.action||"answer");
+    if(act==="fix"){homeShow(`<div class="answer">${you}<div id="homeFix" class="preview"></div></div>`);return runFix(text,$("#homeFix"))}
+    if(act==="trip") return goTrip(String(r.where||text),String(r.plans||""));
+    const ids=[...new Set((Array.isArray(r.itemIds)?r.itemIds:[]).map(String).filter(id=>itemById(id)))];
+    homeLast={text,ids,reply:String(r.reply||"")};
+    homeShow(`<div class="answer">${you}<div class="txt">${esc(r.reply||"Here you go.")}</div>
+      ${ids.length?`<div class="picks">${ids.map(id=>{const it=itemById(id),p=thumbOf(it);return `<button data-hpiece="${esc(id)}">${p?`<img src="${p}" alt="">`:`<div class="noimg"></div>`}<span>${esc(it.name||id)}</span></button>`}).join("")}</div>`:""}
+      ${act==="outfit"&&ids.length?`<div class="row"><button class="primary small" data-saveoutfit>Save outfit and try it on</button><button class="small" data-ask="${esc(text+" (something different)")}">Another idea</button></div>`:""}</div>`);
+  }catch(e){if(my===homeSeq) homeShow(`<div class="answer">${you}<div class="msg err">${esc(e.message)}</div></div>`)}
+}
+function goTrip(where,plans){
+  $("#tp_where").value=where; if(plans) $("#tp_plans").value=plans;
+  $("#homeText").value=""; homeShow(""); showTab("trips");
+  if(hasAI()) planTrip(); else $("#tp_where").focus();
+}
+async function saveHomeOutfit(btn){
+  if(!homeLast||!homeLast.ids.length) return; btn.disabled=true;
+  const o={id:"outfit-"+rid(),name:homeLast.text.replace(/\?$/,"").slice(0,60),plan:homeLast.text,scene:"",weather:"",note:homeLast.reply,itemIds:homeLast.ids,trip:"",renders:[],createdAt:now(),updatedAt:now()};
+  await putOutfit(o); outfits.push(o); toast("Saved to Outfits"); openOutfit(o.id);
 }
 
 /* ================= shell ================= */
@@ -1628,32 +1782,34 @@ function renderHeader(){
   if(!profile) return;
   $("#whoName").textContent=profile.name;
   $("#avatar").innerHTML=faces[0]?`<img src="${faces[0].data}" alt="">`:esc(profile.name[0].toUpperCase());
-  const f=$("#aiFlag"); f.textContent=hasAI()?"Smart on":"Smart off"; f.classList.toggle("on",hasAI());
   document.title=`${profile.name}'s wardrobe`;
   renderSyncFlag();
 }
-let tab="closet";
+let tab="home";
 function showTab(t){
   tab=t; document.querySelectorAll(".tabbar button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
-  for(const x of ["closet","outfits","add","trips","more"]) $("#tab-"+x).hidden=x!==t;
+  for(const x of ["home","closet","outfits","add","trips","more"]) $("#tab-"+x).hidden=x!==t;
   refreshTab(); window.scrollTo(0,0);
 }
 function refreshTab(){
   if(!profile) return;
-  if(tab==="closet") render(); if(tab==="outfits") renderOutfits(); if(tab==="add") renderAddTab(); if(tab==="trips") renderTrips(); if(tab==="more") renderMore();
+  if(tab==="home") renderHome(); if(tab==="closet") render(); if(tab==="outfits") renderOutfits(); if(tab==="add") renderAddTab(); if(tab==="trips") renderTrips(); if(tab==="more") renderMore();
 }
 function renderAll(){renderHeader();refreshTab()}
 document.querySelectorAll(".tabbar button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 document.addEventListener("click",e=>{
   const g=e.target.closest("[data-go]"); if(g){const to=g.dataset.go;
     if(sheetLocked)return; closeModal();
-    if(to==="ai"||to==="faces"){showTab("more");setTimeout(()=>{const el=$(to==="ai"?"#aiPanel":"#facesPanel");if(el)el.scrollIntoView({behavior:"smooth"})},60)} else showTab(to);}
+    if(to==="ai"||to==="faces"){showTab("more");openPanel(to==="ai"?"ai":"you")} else showTab(to);}
   if(e.target.closest("[data-nobanner]")){LS.set("wardrobe-nobanner",true);renderStart()}
+  const h=e.target.closest("[data-home]"); if(h){const k=h.dataset.home; if(k==="fix") openFixSheet(); else {showTab(k); if(k==="trips") setTimeout(()=>$("#tp_where").focus(),50)}}
+  const q=e.target.closest("[data-ask]"); if(q){$("#homeText").value=q.dataset.ask;askHome()}
+  const hp=e.target.closest("[data-hpiece]"); if(hp) openItem(hp.dataset.hpiece);
+  const so=e.target.closest("[data-saveoutfit]"); if(so) saveHomeOutfit(so);
   if(e.target.closest("[data-new-outfit]")) openOutfitEditor(null);
 });
 $("#whoBtn").onclick=()=>showTab("more");
-$("#syncFlag").onclick=()=>{showTab("more");setTimeout(()=>{const el=$("#syncPanel");if(el)el.scrollIntoView({behavior:"smooth"})},60)};
-$("#aiFlag").onclick=()=>{showTab("more");setTimeout(()=>{const el=$("#aiPanel");if(el)el.scrollIntoView({behavior:"smooth"})},60)};
+$("#syncFlag").onclick=()=>{showTab("more");openPanel("sync")};
 $("#chips").onclick=e=>{const c=e.target.closest("[data-cat]");if(c){activeCat=c.dataset.cat;render()}};
 $("#cats").onclick=async e=>{
   const bd=e.target.closest("[data-bulkdel]");
@@ -1666,14 +1822,25 @@ $("#cats").onclick=async e=>{
   const c=e.target.closest(".card"); if(c) openItem(c.dataset.id);
 };
 $("#q").oninput=e=>{query=e.target.value.trim();render()};
-$("#fixBtn").onclick=()=>runFix($("#fixText").value,$("#fixOut"));
+function openFixSheet(){
+  openSheet(`${shead("Fix something")}<p class="muted sm" style="margin-top:0">Say what's wrong in your own words. You'll see the change before it's saved, and you can undo it later.</p>
+    <div class="askrow"><textarea id="fixText" rows="2" placeholder="The grey Zegna coat is actually black"></textarea><button class="send" id="fixBtn" aria-label="Check"><svg viewBox="0 0 24 24" class="ic"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
+    <div id="fixOut" class="preview"></div>`);
+  $("#fixBtn").onclick=()=>runFix($("#fixText").value,$("#fixOut"));
+  $("#fixText").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("#fixBtn").click()}};
+  setTimeout(()=>$("#fixText").focus(),50);
+}
+$("#openFix").onclick=openFixSheet;
 const autoGrow=el=>{el.style.height="auto";el.style.height=Math.min(el.scrollHeight+2,140)+"px"};
 document.addEventListener("input",e=>{if(e.target.id==="fixText"||e.target.id==="itemFix")autoGrow(e.target)});
-$("#fixText").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("#fixBtn").click()}};
 document.addEventListener("keydown",e=>{
   if(e.key==="Escape"&&$("#modal").classList.contains("open")) closeModal();
   if(e.key==="Enter"&&!e.shiftKey&&e.target.id==="itemFix"){e.preventDefault();runFix(e.target.value,$("#itemFixOut"),items.find(x=>x.id===openId))}
 });
+$("#homePhotos").onchange=e=>{const f=[...e.target.files];e.target.value="";if(f.length){showTab("add");addFromPhotos(f)}};
+$("#homeSend").onclick=()=>askHome();
+$("#homeText").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();askHome()}};
+$("#homeText").oninput=e=>autoGrow(e.target);
 $("#addPhotos").onchange=e=>{const f=[...e.target.files];e.target.value="";if(f.length)addFromPhotos(f)};
 $("#addManualBtn").onclick=openAddManual;
 $("#newOutfitBtn").onclick=()=>openOutfitEditor(null);
