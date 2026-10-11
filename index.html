@@ -284,7 +284,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
     <div id="banner"></div>
     <button class="brand" id="brandBtn" aria-label="Switch wardrobe"><svg viewBox="0 0 64 64" class="logo" aria-hidden="true"><path d="M27.3 15.2 A5.2 5.2 0 1 1 32 18.2 V22.5"/><path d="M32 22.5 L11.5 36.2 C9.6 37.5 10.4 40 12.6 40 H51.4 C53.6 40 54.4 37.5 52.5 36.2 Z"/></svg><span id="brandName">Wardrobe</span></button>
     <nav class="menu" aria-label="Main"><div class="in">
-      <button class="mi" data-home="closet"><i>i</i><span class="t">Closet</span><span class="n" id="hn-closet"></span></button>
+      <button class="mi" data-home="closet"><i>i</i><span class="t">Closet</span></button>
       <button class="mi" data-home="outfits"><i>ii</i><span class="t">Outfits</span><span class="n" id="hn-outfits"></span></button>
       <button class="mi" data-home="trips"><i>iii</i><span class="t">Trips</span><span class="n" id="hn-trips"></span></button>
       <button class="mi gold" data-home="add"><i>iv</i><span class="t">Add clothes</span></button>
@@ -603,7 +603,7 @@ function render(){
   const cs=catNames(), counts={}; for(const c of cs) counts[c]=0;
   for(const it of items) counts[it.category]=(counts[it.category]||0)+1;
   if(activeCat!=="All"&&!cs.includes(activeCat)) activeCat="All";
-  $("#chips").innerHTML=["All",...cs.filter(c=>counts[c]||activeCat===c)].map(c=>`<button class="chip ${c===activeCat?"on":""}" data-cat="${esc(c)}">${esc(c==="All"?"All":catLabel(c))}<span class="n">${c==="All"?items.length:counts[c]}</span></button>`).join("");
+  $("#chips").innerHTML=["All",...cs].map(c=>`<button class="chip ${c===activeCat?"on":""}" data-cat="${esc(c)}">${esc(c==="All"?"All":catLabel(c))}</button>`).join("")+`<button class="chip" data-addcat aria-label="Add or change categories">+</button>`;
   if(!items.length){$("#cats").innerHTML=`<div class="empty">No clothes yet. <button class="link" data-go="add">Add some</button></div>`;return}
   const cats=activeCat==="All"?cs:[activeCat];
   let html="";
@@ -1209,6 +1209,7 @@ $("#sheet").addEventListener("click",async e=>{
 /* More: a short list; each row opens its own sheet */
 let openPanelKey=null;
 const MORE_ICON={
+  cats:`<svg viewBox="0 0 24 24" class="ic"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><path d="M16.5 13.5v6M13.5 16.5h6"/></svg>`,
   wardrobes:`<svg viewBox="0 0 24 24" class="ic"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.2 3-5 6-5s5.4 1.8 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14c2.6.2 4 1.8 4.5 4.5"/></svg>`,
   you:`<svg viewBox="0 0 24 24" class="ic"><rect x="3.5" y="5.5" width="17" height="14" rx="3"/><circle cx="12" cy="12" r="3.3"/><path d="M8.5 5.5 10 3.5h4l1.5 2"/></svg>`,
   ai:`<svg viewBox="0 0 24 24" class="ic"><path d="M12 3.5 13.8 9 19.5 10.5 13.8 12 12 17.5 10.2 12 4.5 10.5 10.2 9Z"/><path d="M18.5 16v4M16.5 18h4"/></svg>`,
@@ -1221,6 +1222,7 @@ const wardSub=()=>profile.name+(profiles.length>1?` · ${profiles.length} wardro
 function renderMore(){
   const rows=[
     ["wardrobes","Wardrobes",wardSub()],
+    ["cats","Categories",`${catNames().length}`],
     ["you",`Photos of ${profile.name}`,faces.length?`${faces.length} photo${faces.length===1?"":"s"}`:"None yet"],
     ["ai","Smart features",hasAI()?"On":"Off"],
     ["sync","Sync",syncSub()],
@@ -1237,6 +1239,11 @@ function panelHTML(k){
   if(k==="wardrobes") return `${shead("Wardrobes")}<p class="muted sm" style="margin-top:0">Each wardrobe has its own clothes, outfits and face photos.</p>
     <div class="plist" id="plist"><div class="muted sm">Loading…</div></div>
     <div class="row"><button data-m="newwardrobe">+ Add a wardrobe</button></div>`;
+  if(k==="cats"){const n={};for(const it of items)n[it.category]=(n[it.category]||0)+1;
+    return `${shead("Categories")}<p class="muted sm" style="margin-top:0">Add your own, like Skiwear. Tap one to rename it; an empty one can be removed.</p>
+    <div class="list">${catNames().map(c=>`<div class="lrow" style="cursor:default"><span class="lt">${esc(catLabel(c))}</span><span class="ls">${n[c]||0}</span><button class="link" data-m="renamecat" data-c="${esc(c)}">Rename</button>${n[c]?"":`<button class="link" style="color:var(--danger)" data-m="delcat" data-c="${esc(c)}" aria-label="Remove ${esc(catLabel(c))}">Remove</button>`}</div>`).join("")}</div>
+    <label for="m_newcat">New category</label><div class="askrow"><input id="m_newcat" placeholder="e.g. Skiwear" autocomplete="off"><button class="primary" data-m="addcat">Add</button></div>
+    <div class="msg" id="catMsg"></div>`}
   if(k==="you") return `${shead("Photos of "+profile.name)}<p class="muted sm" style="margin-top:0">Two or three clear, front-facing photos in good light, so try-on looks like you.</p>
     <div class="faces">${faces.map(f=>`<div class="face"><img src="${f.data}" alt=""><button data-rmface="${f.id}" aria-label="Remove">✕</button></div>`).join("")}<label class="face addface" aria-label="Add face photos">+<input type="file" id="faceInput" accept="image/*" multiple hidden></label></div>
     <label for="m_build">Height and build</label><input id="m_build" value="${esc(profile.build||"")}" placeholder="e.g. 5'7&quot;, slim">
@@ -1297,6 +1304,7 @@ async function moreClick(e){
   if(a==="savekey"){const k=$("#m_key").value.trim();if(k&&!/^sk-/.test(k)){km.className="msg err";km.textContent="That doesn't look like an OpenAI key (they start with sk-).";return}
     LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),key:k}); refreshMore(); renderHeader(); if(k) testKey()}
   if(a==="testkey") testKey();
+  if(a==="addcat"||a==="renamecat"||a==="delcat") return catAction(a,b.dataset.c);
   if(a==="forgetkey"){LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),key:""});renderHeader();refreshMore();toast("Key removed")}
   if(a==="savemodels"){LS.set("wardrobe-ai",{...LS.get("wardrobe-ai",{}),textModel:$("#m_tmodel").value.trim()||AI_DEFAULTS.textModel,imageModel:$("#m_imodel").value.trim()||AI_DEFAULTS.imageModel,quality:$("#m_quality").value});toast("Saved")}
   if(a==="backup") download(`${profile.name.replace(/[^\w-]+/g,"-")}-wardrobe-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({app:"henry-wardrobe",version:3,exportedAt:now(),profile,items,faces,log,outfits,trips}),"application/json");
@@ -1323,6 +1331,28 @@ async function moreChange(e){
 $("#tab-more").addEventListener("click",moreClick);
 $("#sheet").addEventListener("click",e=>{if(openPanelKey)moreClick(e)});
 $("#sheet").addEventListener("change",e=>{if(openPanelKey)moreChange(e)});
+async function catAction(a,c){
+  const msg=$("#catMsg"), taken=n=>catNames().some(x=>x.toLowerCase()===n.toLowerCase()||catLabel(x).toLowerCase()===n.toLowerCase());
+  if(a==="addcat"){
+    const name=($("#m_newcat").value||"").trim().replace(/\s+/g," ");
+    if(!name){msg.className="msg err";msg.textContent="Type a name first.";return}
+    if(taken(name)){msg.className="msg err";msg.textContent=`You already have ${name}.`;return}
+    profile.cats.push({name,prefix:makePrefix(name)}); await putMeta(); refreshMore(); toast(`Added ${name}`); return;
+  }
+  if(a==="delcat"){
+    if(items.some(it=>it.category===c)) return;
+    profile.cats=profile.cats.filter(x=>x.name!==c); await putMeta(); if(activeCat===c)activeCat="All"; refreshMore(); toast(`Removed ${catLabel(c)}`); return;
+  }
+  if(a==="renamecat"){
+    const name=(prompt(`Rename ${catLabel(c)} to:`,catLabel(c))||"").trim().replace(/\s+/g," ");
+    if(!name||name===catLabel(c)) return;
+    if(taken(name)){toast(`You already have ${name}.`);return}
+    const ent=profile.cats.find(x=>x.name===c); if(ent) ent.name=name; else profile.cats.push({name,prefix:makePrefix(name)});
+    await putMeta();
+    for(const it of items.filter(x=>x.category===c)){it.category=name;await recordChange(it,[{field:"category",from:c,to:name}],"edit",`Renamed the category ${catLabel(c)} to ${name}`)}
+    if(activeCat===c) activeCat=name; refreshMore(); toast(`Renamed to ${name}`);
+  }
+}
 async function testKey(){
   const km=$("#keyMsg"); if(!km) return; km.className="msg"; km.innerHTML=`<span class="spin"></span>Checking with OpenAI…`;
   try{const r=await aiChat([{role:"system",content:'Reply with JSON {"ok":true}.'},{role:"user",content:"ping"}],{maxTokens:50});km.className="msg ok";km.textContent=r&&r.ok?"Your key works. Smart features are on.":"OpenAI answered, so your key works."}
@@ -1731,7 +1761,6 @@ function tripGroups(){ // trips the planner made, plus imported outfit groups th
 function renderHome(){
   $("#brandName").textContent=`${profile.name}'s wardrobe`;
   const tg=tripGroups(), plural=(n,w)=>n?`${n} ${w}${n===1?"":"s"}`:"";
-  $("#hn-closet").textContent=plural(items.length,"piece");
   $("#hn-outfits").textContent=plural(outfits.length,"outfit");
   $("#hn-trips").textContent=plural(tg.length,"trip");
   const t=tg[0];
@@ -1770,7 +1799,7 @@ document.addEventListener("click",e=>{
 });
 $("#whoBtn").onclick=()=>showTab("more");
 $("#syncFlag").onclick=()=>{showTab("more");openPanel("sync")};
-$("#chips").onclick=e=>{const c=e.target.closest("[data-cat]");if(c){activeCat=c.dataset.cat;render()}};
+$("#chips").onclick=e=>{if(e.target.closest("[data-addcat]")){openPanel("cats");return}const c=e.target.closest("[data-cat]");if(c){activeCat=c.dataset.cat;render()}};
 $("#cats").onclick=async e=>{
   const bd=e.target.closest("[data-bulkdel]");
   if(bd){
