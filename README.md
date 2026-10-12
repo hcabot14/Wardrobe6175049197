@@ -61,3 +61,5 @@ end-to-end test of the receiving ChatGPT session.
 Run `node tests/workflow.test.cjs` and `node tests/transfer.test.cjs` for local
 validation, serializer, and endpoint access checks. Test the native app launch on
 the actual iPhone.
+
+Recommendation audit: after building the owned capsule, assess its weakest links against the trip and compare it with an ideal capsule curated from scratch. Offer only meaningful, researched upgrades, with no fixed recommendation count; explain the exact owned pieces replaced or supplemented and show optional upgraded looks. Owned outfits and packing remain usable without purchases.
