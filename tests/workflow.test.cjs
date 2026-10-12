@@ -36,9 +36,27 @@ run("renderHome()");assert.equal(run("$('#nextTrip').innerHTML.includes('Test')"
 const saved={items:new Map(),trips:new Map(),outfits:new Map(),meta:new Map()};
 ctx.fakeDB={transaction(){const t={objectStore:n=>({put:v=>saved[n].set(v.id,structuredClone(v)),delete:id=>saved[n].delete(id)})};queueMicrotask(()=>t.oncomplete?.());return t}};
 (async()=>{
-run("db=fakeDB;outfits=[{id:'old',tripId:'trip-test',date:'2026-12-01',slot:'day',itemIds:['OW-001'],scene:'Paris',renders:[{image:'saved-render'}]},{id:'removed',tripId:'trip-test',date:'2026-11-01',itemIds:['OW-001'],renders:[]}];");
-await run('applyPlan(plan)');assert.equal(saved.trips.get('trip-test').status,'planned');assert.equal(saved.outfits.get('old').renders[0].image,'saved-render');assert.equal(saved.meta.get('del:outfit:removed').kind,'outfit');assert.equal(run('tripOutfits(trips[0]).length'),2);
+run("editingTrip='trip-test';db=fakeDB;outfits=[{id:'old',tripId:'trip-test',date:'2026-12-01',slot:'day',itemIds:['OW-001'],scene:'Paris',renders:[{image:'saved-render'}]},{id:'removed',tripId:'trip-test',date:'2026-11-01',itemIds:['OW-001'],renders:[]}];");
+await run('applyPlan(plan)');assert.equal(saved.trips.get('trip-test').status,'planned');assert.equal(saved.outfits.get('old').renders[0].image,'saved-render');assert.equal(saved.meta.get('del:outfit:removed').kind,'outfit');assert.equal(run('tripOutfits(trips[0]).length'),2);assert.equal(run('editingTrip'),null);assert.equal(run("$('#tp_plans').value"),'');
 await run("savePatchAtomically(validateClosetPatch({snapshotId:snapshotId(),changes:[{id:'OW-001',fields:{color:'black'}}]}))");assert.equal(saved.items.get('OW-001').color,'black');assert.equal(run("itemById('OW-001').color"),'black');
 run("session={uid:'test-user',access:'NEVER-COPY-THIS'};profile.cloudId='w-test'");const request=run("connectedRequest({id:'trip-test',snapshotId:'test-snapshot',handoff:{photoAttachments:[],faceAttachments:[],returnAccess:{endpoint:'https://example.com/return',expiresAt:'2026-12-01'}}})");assert.ok(request.includes('trip-test'));assert.ok(request.includes('kind=sheet'));assert.ok(request.includes('NOT required as message attachments'));assert.ok(!request.includes('NEVER-COPY-THIS'));
 run("syncNow=async()=>{};syncState={err:false};syncing=false;api=async()=>[{data:{handoff:{preparedAt:'ready'}}}];");await run("syncHandoff({id:'trip-test',snapshotId:snapshotId(),handoff:{preparedAt:'ready'}},'w-test')");run("api=async()=>[]");await assert.rejects(run("syncHandoff({id:'trip-test',snapshotId:snapshotId(),handoff:{preparedAt:'missing'}},'w-test')"),/not finished syncing/);
-await assert.rejects(run('aiChat([])'),/disabled/);const z=await run("zipFiles([new File(['hello'],'one.txt'),new File(['world'],'two.txt')])");fs.writeFileSync('/tmp/wardrobe-test.zip',Buffer.from(await z.arrayBuffer()));console.log('Passed: initialization, plan validation, stale snapshot protection, archive filtering, safe links, no-API guard, rendering requirements and ZIP generation.');})().catch(e=>{console.error(e);process.exitCode=1});
+// A failed download must abort record hydration, not silently remove photographs.
+run("photoDownloads=0;downloadPhoto=async()=>{photoDownloads++;return null};shrink=async u=>u");
+await assert.rejects(run("fromCloud('item',{photos:['sb:'+ 'a'.repeat(64)]})"),/could not be downloaded/);
+await assert.rejects(run("fromCloud('face',{data:'sb:'+ 'a'.repeat(64)})"),/could not be downloaded/);
+await assert.rejects(run("fromCloud('outfit',{renders:[{image:'sb:'+ 'a'.repeat(64)}]})"),/could not be downloaded/);
+await assert.rejects(run("fromCloud('trip',{optionalLooks:[{id:'optional-1',renders:[{image:'sb:'+ 'a'.repeat(64)}]}]})"),/could not be downloaded/);
+// Keep externally uploaded SHA-256 references stable across metadata edits.
+run("photoDownloads=0;downloadPhoto=async()=>{photoDownloads++;return 'data:image/jpeg;base64,QQ=='}");
+ctx.hydrated=await run("fromCloud('item',{id:'SU-001',photos:['sb:'+ 'a'.repeat(64)]})");
+const downloads=run('photoDownloads');
+await run("fromCloud('item',{id:'SU-001',photos:['sb:'+ 'a'.repeat(64)]},hydrated)");assert.equal(run('photoDownloads'),downloads);
+ctx.cachedUploads=new Map();const cachedCloud=run("toCloud('item',hydrated,cachedUploads)");assert.equal(cachedCloud.photos[0],'sb:'+'a'.repeat(64));assert.equal(ctx.cachedUploads.size,0);assert.equal(cachedCloud._photoSources,undefined);
+ctx.hydratedTrip=await run("fromCloud('trip',{id:'trip-test',optionalLooks:[{id:'optional-1',renders:[{image:'sb:'+ 'b'.repeat(64)}]}]})");
+const tripDownloads=run('photoDownloads');
+await run("fromCloud('trip',{id:'trip-test',optionalLooks:[{id:'optional-1',renders:[{image:'sb:'+ 'b'.repeat(64)}]}]},hydratedTrip)");assert.equal(run('photoDownloads'),tripDownloads);
+const cloudTrip=run("toCloud('trip',hydratedTrip,cachedUploads)");assert.equal(cloudTrip.optionalLooks[0].renders[0].image,'sb:'+'b'.repeat(64));assert.equal(cloudTrip.optionalLooks[0]._photoSources,undefined);
+// No-render imports cannot be labeled a complete lookbook.
+run("trips[0].snapshotId=snapshotId();plan.snapshotId=snapshotId();previewPlan(plan)");assert.ok(run("$('#planReview').innerHTML.includes('Save outfit plan')"));
+await assert.rejects(run('aiChat([])'),/disabled/);const z=await run("zipFiles([new File(['hello'],'one.txt'),new File(['world'],'two.txt')])");fs.writeFileSync('/tmp/wardrobe-test.zip',Buffer.from(await z.arrayBuffer()));console.log('Passed: workflow validation, journey reset, failed-download recovery, photo reference reuse, optional render sync, partial-plan labeling, no-API guard and ZIP generation.');})().catch(e=>{console.error(e);process.exitCode=1});

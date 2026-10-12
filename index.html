@@ -1777,7 +1777,7 @@ const STAMP={item:x=>x.updatedAt||x.createdAt||"",face:x=>x.updatedAt||x.addedAt
 const STORE={item:"items",face:"faces",outfit:"outfits",trip:"trips",log:"log"};
 const logKey=h=>h.at+"|"+h.itemId+"|"+h.source;
 function toCloud(kind,x,uploads){
-  const c={...x}; const ref=u=>{if(typeof u!=="string"||!u.startsWith("data:"))return u;const h=photoHash(u);uploads.set(h,u);return "sb:"+h};
+  const c={...x}; delete c._photoSources; const ref=u=>{if(typeof u!=="string"||!u.startsWith("data:"))return u;const h=photoHash(u),source=x._photoSources?.[h];if(typeof source==="string"&&/^sb:[a-f0-9]{32,64}$/.test(source))return source;uploads.set(h,u);return "sb:"+h};
   if(kind==="item"){c.photos=(x.photos||[]).map(ref);delete c.thumb}
   if(kind==="face") c.data=ref(x.data);
   if(kind==="outfit") c.renders=(x.renders||[]).map(r=>({...r,image:ref(r.image)}));
@@ -1790,13 +1790,14 @@ async function downloadPhoto(h){
     await dPut(await syncDB(),"uploaded",1,h); return u}catch(e){return null}
 }
 async function fromCloud(kind,c,old){
-  const cache=new Map(), add=u=>{if(typeof u==="string"&&u.startsWith("data:"))cache.set(photoHash(u),u)};
+  const cache=new Map(),sources={},add=u=>{if(typeof u==="string"&&u.startsWith("data:")){const h=photoHash(u);cache.set(h,u);const source=old?._photoSources?.[h];if(typeof source==="string"&&/^sb:[a-f0-9]{32,64}$/.test(source))cache.set(source.slice(3),u)}};
   if(old){(old.photos||[]).forEach(add);add(old.data);(old.renders||[]).forEach(r=>add(r.image))}
-  const get=async u=>{if(typeof u!=="string"||!u.startsWith("sb:"))return u;const h=u.slice(3);return cache.get(h)||await downloadPhoto(h)};
+  const get=async u=>{if(typeof u!=="string"||!u.startsWith("sb:"))return u;const h=u.slice(3),image=cache.get(h)||await downloadPhoto(h);if(!image)throw new Error("A photo could not be downloaded. Your existing record is unchanged; try Sync now again.");sources[photoHash(image)]=u;return image};
   const x={...c};
-  if(kind==="item"){x.photos=(await Promise.all((c.photos||[]).map(get))).filter(Boolean);x.thumb=x.photos[0]?(old&&old.photos&&old.photos[0]===x.photos[0]&&old.thumb?old.thumb:await shrink(x.photos[0],380,"image/jpeg",.8)):""}
+  if(kind==="item"){x.photos=await Promise.all((c.photos||[]).map(get));x.thumb=x.photos[0]?(old&&old.photos&&old.photos[0]===x.photos[0]&&old.thumb?old.thumb:await shrink(x.photos[0],380,"image/jpeg",.8)):""}
   if(kind==="face") x.data=await get(c.data);
-  if(kind==="outfit") x.renders=(await Promise.all((c.renders||[]).map(async r=>({...r,image:await get(r.image)})))).filter(r=>r.image);
+  if(kind==="outfit") x.renders=await Promise.all((c.renders||[]).map(async r=>({...r,image:await get(r.image)})));
+  if(Object.keys(sources).length)x._photoSources=sources;
   return x;
 }
 async function uploadPhotos(uploads,status){
