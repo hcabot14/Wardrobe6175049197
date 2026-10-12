@@ -63,3 +63,9 @@ validation, serializer, and endpoint access checks. Test the native app launch o
 the actual iPhone.
 
 Recommendation audit: after building the owned capsule, assess its weakest links against the trip and compare it with an ideal capsule curated from scratch. Offer only meaningful, researched upgrades, with no fixed recommendation count; explain the exact owned pieces replaced or supplemented and show optional upgraded looks. Owned outfits and packing remain usable without purchases.
+
+## Shared beta
+
+The `/beta/` app uses its own browser storage and PWA cache. New users create a Wardrobe account; no Supabase or GitHub connector setup is required. The separate `wardrobe-beta-handoff` function accepts only an expiring trip capability and exposes a scoped bundle, private reference downloads, proposal return, and render upload. It never grants SQL or project administration access. The copied request contains this private capability in an Authorization header instruction; do not share that request publicly.
+
+Free ChatGPT users need a Work session with HTTP/file/image capabilities. Upload and image limits may require resuming. Free-account end-to-end operation is a pilot validation requirement, not a guaranteed capability. Use a small starter closet and three-day trip. Tests: `node tests/beta-workflow.test.cjs` and `node tests/beta-transfer.test.cjs`. This test link is not enforced invite-only access; account registration follows the existing authentication service settings.
