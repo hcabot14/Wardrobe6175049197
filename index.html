@@ -1444,7 +1444,7 @@ async function moreClick(e){
   const sw=e.target.closest("[data-switch]"); if(sw){if(sw.dataset.switch!==dbName){closeModal(true);await switchTo(sw.dataset.switch);toast("Switched to "+profile.name);showTab("home")}return}
   const rf=e.target.closest("[data-rmface]"); if(rf){if(!confirm("Remove this photo?"))return;await tx("faces","readwrite",s=>s.delete(rf.dataset.rmface));await tomb("face",rf.dataset.rmface);faces=faces.filter(x=>x.id!==rf.dataset.rmface);renderHeader();refreshMore();return}
   const b=e.target.closest("[data-m]"); if(!b) return; const a=b.dataset.m, km=$("#keyMsg");
-  if(["savecloud","signin","signup","syncnow","signout"].includes(a)) return syncAction(a);
+  if(["savecloud","signin","signup","syncnow","signout","resetpassword"].includes(a)) return syncAction(a);
   if(a==="newwardrobe"){openPanelKey=null;showWelcome({})}
   if(a==="saveprofile"){profile.name=$("#m_name").value.trim()||profile.name;profile.build=$("#m_build").value.trim();profile.person=$("#m_person").value;await putMeta();renderHeader();toast("Saved");refreshMore()}
   if(a==="savekey"){const k=$("#m_key").value.trim();if(k&&!/^sk-/.test(k)){km.className="msg err";km.textContent="That doesn't look like an OpenAI key (they start with sk-).";return}
@@ -1919,12 +1919,13 @@ function syncPanelHTML(){
   if(!session) return `<p class="muted sm">Sign in on each phone and computer you use. Every wardrobe on this device then stays the same everywhere, photos included. Only you can see your clothes.</p>
     <label for="c_email">Email</label><input id="c_email" type="email" autocomplete="email" inputmode="email">
     <label for="c_pw">Password</label><input id="c_pw" type="password" autocomplete="current-password">
-    <div class="row"><button class="primary" data-m="signin">Sign in</button><button data-m="signup">Create account</button></div><div class="msg" id="syncStatus"></div>${setup}`;
+    <div class="row"><button class="primary" data-m="signin">Sign in</button><button data-m="signup">Create account</button><button class="link" data-m="resetpassword">Forgot password?</button></div><div class="msg" id="syncStatus"></div>${setup}`;
   return `<p class="muted sm">Signed in as <b>${esc(session.email)}</b>. Changes sync by themselves${last?`; last synced ${esc(fmtDate(last))}`:""}.</p>
-    <div class="row"><button data-m="syncnow">Sync now</button><button class="small right" data-m="signout">Sign out</button></div><div class="msg ${syncState.err?"err":""}" id="syncStatus">${esc(syncState.text)}</div>${setup}`;
+    <div class="row"><button data-m="syncnow">Sync now</button><button class="small" data-m="resetpassword">Reset password</button><button class="small right" data-m="signout">Sign out</button></div><div class="msg ${syncState.err?"err":""}" id="syncStatus">${esc(syncState.text)}</div>${setup}`;
 }
 async function syncAction(a){
   const st=$("#syncStatus"), say=(t,err)=>{if(st){st.className="msg"+(err?" err":" ok");st.textContent=t}};
+  if(a==="resetpassword")return openResetRequest($("#c_email")?.value?.trim()||session?.email||"");
   if(a==="savecloud"){LS.set("wardrobe-cloud",{url:$("#c_url").value.trim(),anon:$("#c_anon").value.trim()});$("#syncPanel").innerHTML=syncPanelHTML();renderSyncFlag();return}
   if(a==="signin"||a==="signup"){
     const email=$("#c_email").value.trim(), pw=$("#c_pw").value;
@@ -1960,9 +1961,10 @@ function showWelcome({first=false,reuse=false}){
   if($("#w_signin")) $("#w_signin").onclick=()=>{
     $("#sheet").innerHTML=`<div class="grabber"></div><div class="welcome"><div class="wicon">${ICON.logo}</div><h2>Sign in</h2><p class="muted">Your wardrobes come over from your other devices, photos included.</p>
       <label for="c_email">Email</label><input id="c_email" type="email" autocomplete="email" inputmode="email"><label for="c_pw">Password</label><input id="c_pw" type="password" autocomplete="current-password">
-      <div class="row"><button class="primary wide" id="w_si">Sign in</button></div><div class="msg" id="syncStatus"></div>
+      <div class="row"><button class="primary wide" id="w_si">Sign in</button><button class="link" id="w_reset">Forgot password?</button></div><div class="msg" id="syncStatus"></div>
       <div class="row" style="justify-content:center"><button class="link" id="w_back">Back</button></div></div>`;
     $("#w_back").onclick=()=>showWelcome({first,reuse});
+    $("#w_reset").onclick=()=>openResetRequest($("#c_email").value.trim());
     $("#w_si").onclick=async()=>{
       const st=$("#syncStatus"); st.className="msg"; st.textContent="Signing in…";
       try{keepSession(await authCall("token?grant_type=password",{email:$("#c_email").value.trim(),password:$("#c_pw").value}));await dClear(await syncDB(),"uploaded")}
@@ -2073,8 +2075,9 @@ if("serviceWorker" in navigator&&location.protocol==="https:") navigator.service
 
 </script>
 <script src="workflow.js"></script>
+<script src="auth-recovery.js"></script>
 <script>
-start().catch(err=>{
+bootWardrobe().catch(err=>{
   document.querySelector("main").innerHTML=`<div class="panel msg err">This browser blocked storage, so the app can't save anything (${esc(err.message)}). Open it in Safari or Chrome, outside a private window.</div>`;
 });
 </script>

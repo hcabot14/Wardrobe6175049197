@@ -1,6 +1,6 @@
 /* Subscription workflow: no model API calls. Existing records and sync stay intact. */
 'use strict';
-const APP_RELEASE='Beta 1';
+const APP_RELEASE='Beta 2';
 // Restore the native iPhone route used in v24-v28. Launch directly on a tap.
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const chatGPTRoute=()=>isIOS()?'com.openai.chat://':'https://chatgpt.com/';
