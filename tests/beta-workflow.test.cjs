@@ -59,4 +59,11 @@ await run("fromCloud('trip',{id:'trip-test',optionalLooks:[{id:'optional-1',rend
 const cloudTrip=run("toCloud('trip',hydratedTrip,cachedUploads)");assert.equal(cloudTrip.optionalLooks[0].renders[0].image,'sb:'+'b'.repeat(64));assert.equal(cloudTrip.optionalLooks[0]._photoSources,undefined);
 // No-render imports cannot be labeled a complete lookbook.
 run("trips[0].snapshotId=snapshotId();plan.snapshotId=snapshotId();previewPlan(plan)");assert.ok(run("$('#planReview').innerHTML.includes('Save outfit plan')"));
+// Old proposals must not interrupt a fresh handoff or mask its progress.
+run("trips=[{id:'old-trip',snapshotId:'old-snapshot'},{id:'current-trip',snapshotId:snapshotId()}];editingTrip='current-trip';shownProposalKey='';$('#planMsg').textContent='';api=async path=>{if(!path.includes('kind=eq.proposal'))throw new Error('Stale proposal fetched images');return [{id:'old-trip',data:{status:'complete',updatedAt:'2099',plan:{tripId:'old-trip',snapshotId:'old-snapshot'}}},{id:'current-trip',data:{status:'rendering',updatedAt:'2026',plan:{tripId:'current-trip',snapshotId:snapshotId()}}}]}");
+await run('checkReturnedPlans()');assert.equal(run("$('#planMsg').textContent"),'');
+await run('checkReturnedPlans(true)');assert.match(run("$('#planMsg').textContent"),/images have not all returned/);
+// A different trip's pending render must not be reported for this trip.
+run("api=async()=>[{id:'old-trip',data:{status:'rendering',plan:{tripId:'old-trip',snapshotId:'old-snapshot'}}}]");
+await run('checkReturnedPlans(true)');assert.equal(run("$('#planMsg').textContent"),'No new proposal has arrived yet.');
 await assert.rejects(run('aiChat([])'),/disabled/);const z=await run("zipFiles([new File(['hello'],'one.txt'),new File(['world'],'two.txt')])");fs.writeFileSync('/tmp/wardrobe-test.zip',Buffer.from(await z.arrayBuffer()));console.log('Passed: workflow validation, journey reset, failed-download recovery, photo reference reuse, optional render sync, partial-plan labeling, no-API guard and ZIP generation.');})().catch(e=>{console.error(e);process.exitCode=1});

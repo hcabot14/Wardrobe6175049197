@@ -1,6 +1,6 @@
 /* Subscription workflow: no model API calls. Existing records and sync stay intact. */
 'use strict';
-const APP_RELEASE='Beta 2';
+const APP_RELEASE='Beta 3';
 // Restore the native iPhone route used in v24-v28. Launch directly on a tap.
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const chatGPTRoute=()=>isIOS()?'com.openai.chat://':'https://chatgpt.com/';
@@ -299,21 +299,22 @@ async function checkReturnedPlans(manual=false){
  checkingReturnedPlans=true;
  try{
   const rows=await api('/rest/v1/records?select=id,data&kind=eq.proposal&deleted=eq.false&wardrobe=eq.'+encodeURIComponent(profile.cloudId))||[];
-  const candidates=rows.filter(r=>r.data.status!=='rendering'&&trips.some(t=>t.id===r.id&&!t.dismissed&&t.snapshotId===r.data?.plan?.snapshotId)).sort((a,b)=>String(b.data.updatedAt).localeCompare(String(a.data.updatedAt)));
+  const scoped=rows.filter(r=>r.data?.plan?.snapshotId===snapshotId()&&trips.some(t=>t.id===r.id&&!t.dismissed&&t.snapshotId===r.data.plan.snapshotId)&&(!manual||!editingTrip||r.id===editingTrip));
+  const candidates=scoped.filter(r=>r.data.status!=='rendering').sort((a,b)=>String(b.data.updatedAt).localeCompare(String(a.data.updatedAt)));
   for(const row of candidates){
    const key=row.id+':'+row.data.updatedAt;
    if((await dGet(db,'meta','accepted-proposal:'+row.id))?.key===key)continue;
    if(!manual&&shownProposalKey===key)continue;
    const images=await api('/rest/v1/records?select=data&kind=eq.render&deleted=eq.false&wardrobe=eq.'+encodeURIComponent(profile.cloudId))||[];
    const plan={...row.data.plan,renders:images.map(x=>x.data).filter(z=>z.tripId===row.id&&z.snapshotId===row.data.plan.snapshotId&&renderMatchesPlan(row.data.plan,z))};
-   validatePlan(plan);plan.renders=await Promise.all(plan.renders.map(async z=>{const image=z.image.startsWith('sb:')?await downloadPhoto(z.image.slice(3)):z.image;if(!image)throw new Error('A returned image could not be loaded. Try again.');return {...z,image};}));
+   try{validatePlan(plan)}catch(e){if(manual)throw e;continue}plan.renders=await Promise.all(plan.renders.map(async z=>{const image=z.image.startsWith('sb:')?await downloadPhoto(z.image.slice(3)):z.image;if(!image)throw new Error('A returned image could not be loaded. Try again.');return {...z,image};}));
    validatePlan(plan);const missing=missingRenders(plan);if(!manual&&(row.data.status==='partial'||missing.length))continue;plan.bundleStatus=row.data.status==='partial'||missing.length?'partial':'complete';shownProposalKey=key;editJourney(row.id);$('#replyDetails').open=true;previewPlan(plan);
    if(plan.bundleStatus==='partial')$('#planReview').insertAdjacentHTML('afterbegin','<p class="muted sm">'+esc(row.data.error||'Outfit plan received. '+missing.length+' try-on images have not returned yet.')+'</p>');
    const save=$('#savePlanFinal'),accept=save.onclick;
    save.onclick=async e=>{await accept(e);if(trips.find(t=>t.id===row.id)?.status==='planned'&&!$('#planReview').innerHTML)await dPut(db,'meta',{id:'accepted-proposal:'+row.id,key})};
    $('#planMsg').textContent=plan.bundleStatus==='partial'?'A partial result arrived. See what remains below.':'Your complete lookbook is ready. Review outfits, products and renders below.';return;
   }
-  if(manual)$('#planMsg').textContent=rows.some(r=>r.data.status==='rendering')?'An outfit plan arrived; its images have not all returned yet.':'No new proposal has arrived yet.';
+  if(manual)$('#planMsg').textContent=scoped.some(r=>r.data.status==='rendering')?'An outfit plan arrived; its images have not all returned yet.':'No new proposal has arrived yet.';
  }catch(e){$('#planMsg').textContent='Could not load the returned plan: '+e.message}
  finally{checkingReturnedPlans=false}
 }
