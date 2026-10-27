@@ -1,0 +1,23 @@
+name: Wardrobe handoff connectivity test
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/wardrobe-handoff-smoke.yml'
+      - 'workflow.js'
+  workflow_dispatch:
+jobs:
+  connectivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check Supabase edge function is reachable
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://cdpiekcbvyvppaxbpwjz.supabase.co/functions/v1/wardrobe-handoff"
+          status=$(curl --silent --show-error --location --max-time 20 --output /tmp/handoff-response --write-out '%{http_code}' "$url")
+          echo "Unauthenticated endpoint HTTP status: $status"
+          test "$status" = "400" -o "$status" = "401"
+          echo "Endpoint reachable; authentication is enforced."
+      - name: Explain test scope
+        run: echo "This only checks reachability, not private photo retrieval, rendering, or save."
