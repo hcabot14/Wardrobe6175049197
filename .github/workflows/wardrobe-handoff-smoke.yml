@@ -19,5 +19,17 @@ jobs:
           echo "Unauthenticated endpoint HTTP status: $status"
           test "$status" = "400" -o "$status" = "401"
           echo "Endpoint reachable; authentication is enforced."
+      - name: Verify authenticated requests are required
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://cdpiekcbvyvppaxbpwjz.supabase.co/functions/v1/wardrobe-handoff"
+          scope="user=528aa8a5-3210-4bc0-b72a-4c742c8e9b81&wardrobe=w-mv3puf8qb2kei&trip=trip-mvqknnya19jw7&snapshot=0c0816c0962ca305"
+          status=$(curl --silent --show-error --max-time 20 --output /tmp/denied-photo --write-out '%{http_code}' "$base?$scope&kind=sheet&id=Wardrobe-0c0816c0962ca305-sheet-01.jpg")
+          echo "Photo request without credential HTTP status: $status"
+          test "$status" = "401"
+          status=$(curl --silent --show-error --max-time 20 --output /tmp/denied-photo2 --write-out '%{http_code}' -H "Authorization: Bearer invalid-test-credential" "$base?$scope&kind=sheet&id=Wardrobe-0c0816c0962ca305-sheet-01.jpg")
+          echo "Photo request with invalid credential HTTP status: $status"
+          test "$status" = "401"
       - name: Explain test scope
         run: echo "This only checks reachability, not private photo retrieval, rendering, or save."
