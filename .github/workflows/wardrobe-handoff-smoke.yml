@@ -9,6 +9,8 @@ jobs:
   connectivity:
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    env:
+      HANDOFF_TEST_TOKEN: ${{ secrets.WARDROBE_HANDOFF_TEST_TOKEN }}
     steps:
       - name: Check Supabase edge function is reachable
         shell: bash
@@ -31,5 +33,19 @@ jobs:
           status=$(curl --silent --show-error --max-time 20 --output /tmp/denied-photo2 --write-out '%{http_code}' -H "Authorization: Bearer invalid-test-credential" "$base?$scope&kind=sheet&id=Wardrobe-0c0816c0962ca305-sheet-01.jpg")
           echo "Photo request with invalid credential HTTP status: $status"
           test "$status" = "401"
+      - name: Authorized wardrobe sheet download
+        if: ${{ env.HANDOFF_TEST_TOKEN != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://cdpiekcbvyvppaxbpwjz.supabase.co/functions/v1/wardrobe-handoff"
+          scope="user=528aa8a5-3210-4bc0-b72a-4c742c8e9b81&wardrobe=w-mv3puf8qb2kei&trip=trip-mvqknnya19jw7&snapshot=0c0816c0962ca305"
+          curl --fail --silent --show-error --max-time 30 -H "Authorization: Bearer $HANDOFF_TEST_TOKEN" "$base?$scope&kind=sheet&id=Wardrobe-0c0816c0962ca305-sheet-01.jpg" -o /tmp/wardrobe-test.jpg
+          python3 - <<'PY'
+          from pathlib import Path
+          b=Path('/tmp/wardrobe-test.jpg').read_bytes()
+          assert len(b)>1000 and b[:3]==bytes.fromhex('ffd8ff') and b[-2:]==bytes.fromhex('ffd9'), 'Not a complete JPEG'
+          print('Authorized photograph download returned a valid JPEG.')
+          PY
       - name: Explain test scope
         run: echo "This only checks reachability, not private photo retrieval, rendering, or save."
