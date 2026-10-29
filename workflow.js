@@ -1,6 +1,6 @@
 /* Subscription workflow: no model API calls. Existing records and sync stay intact. */
 'use strict';
-const APP_RELEASE='39';
+const APP_RELEASE='40';
 // Restore the native iPhone route used in v24-v28. Launch directly on a tap.
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const chatGPTRoute=()=>isIOS()?'com.openai.chat://':'https://chatgpt.com/';
@@ -150,7 +150,7 @@ function copyRequestPanel(t,out,files){
  const fresh=()=>{if(faceSignature()!==faceVersion||snapshotId()!==t.snapshotId||trips.find(x=>x.id===t.id)?.handoff?.preparedAt!==preparedAt)throw new Error('The wardrobe or request changed. Tap Continue to prepare fresh photos.');};
  const packet=[new File([text],'Start-here.txt',{type:'text/plain'}),...files];
  const shareable=!!(navigator.canShare&&navigator.canShare({files}));
- out.innerHTML=`<p class="muted sm">Your trip and photos are ready.</p><a class="btn primary" href="${chatGPTRoute()}" ${isIOS()?'':'target="_blank" rel="noopener"'} data-routechat>Route to ChatGPT</a><p class="muted sm">Paste the request in your Wardrobe App chat. ChatGPT retrieves the photos from your saved trip.</p><div data-copyresult class="msg" role="status"></div><details><summary>Other options</summary><div class="row"><button data-sendtrip>${shareable?'Share photos':'Download trip packet'}</button><button data-copytrip>Copy request</button><button data-downloadphotos>Download packet</button><a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Use website</a><button data-checkplan>Check for finished lookbook</button></div><button data-filefallback>Prepare for Claude or another chat</button><div data-fallbackout></div></details>`;
+ out.innerHTML=`<p class="muted sm">Your trip and photos are ready.</p><a class="btn primary" href="${chatGPTRoute()}" ${isIOS()?'':'target="_blank" rel="noopener"'} data-routechat>Go to ChatGPT</a><p class="muted sm">Paste the request in your Wardrobe App chat. ChatGPT retrieves the photos from your saved trip.</p><div data-copyresult class="msg" role="status"></div><details><summary>Other options</summary><div class="row"><button data-sendtrip>${shareable?'Share photos':'Download trip packet'}</button><button data-copytrip>Copy request</button><button data-downloadphotos>Download packet</button><a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Use website</a><button data-checkplan>Check for finished lookbook</button></div><button data-filefallback>Prepare for Claude or another chat</button><div data-fallbackout></div></details>`;
  // Do not await clipboard work before following the native link: iOS needs
  // navigation to remain on this user gesture. Copy failure stays visible here.
  out.querySelector('[data-routechat]').onclick=e=>{const el=out.querySelector('[data-copyresult]');try{fresh();if(!navigator.clipboard?.writeText)throw new Error('Copy the request under Other options before continuing.');navigator.clipboard.writeText(text).then(()=>{el.textContent='Request copied. Paste it in your Wardrobe App chat.'}).catch(()=>{el.innerHTML='<p>Copy this request:</p><textarea readonly aria-label="Trip request"></textarea>';el.querySelector('textarea').value=text});}catch(err){e.preventDefault();el.textContent=err.message}};
@@ -180,8 +180,14 @@ async function syncHandoff(t,expectedWardrobe){
  if(snapshotId()!==t.snapshotId)throw new Error('The wardrobe changed during sync. Tap Continue to refresh the references.');
  await verifyHandoffReady(t,expectedWardrobe);
 }
+function showTripSignIn(message,out){
+ requestReady=null;
+ message.textContent='Sign in to sync on this device to send your saved photos to ChatGPT. Your trip is saved here.';
+ out.innerHTML='<button class="primary" data-tripsignin>Sign in to continue</button><p class="muted sm">After signing in, tap Continue, then Go to ChatGPT. The request is copied to your clipboard for you to paste. No photo attachments needed.</p>';
+ out.querySelector('[data-tripsignin]').onclick=()=>openPanel('sync');
+}
 planTrip=async function(){const m=$('#planMsg'),b=$('#planBtn');b.disabled=true;handoffWorking=true;try{await waitForSync();if(session&&cloudReady()&&profile.cloudId){m.textContent='Syncing current wardrobe…';await syncNow();await waitForSync();if(syncState.err)throw new Error(syncState.text||'The current wardrobe could not be synced.');}if(!activeItems().length)throw new Error('Add clothes in Closet first.');const t=await saveBrief(),id=snapshotId();
- if(!session||!cloudReady()||!profile.cloudId){m.textContent='Sign in under More → Sync to have the proposal return automatically, or use the files below.';handoffPanel(await requestFiles(planningPrompt(t,id)),$('#requestFiles'),'File fallback');t.snapshotId=id;t.updatedAt=now();await putTrip(t);return}
+ if(!session||!cloudReady()||!profile.cloudId){showTripSignIn(m,$('#requestFiles'));return}
  const wardrobe=profile.cloudId,faceVersion=faceSignature();m.textContent='Preparing wardrobe and face references…';
  const facePack=await handoffFaces();
  const pack=await planningPhotoFiles(activeItems().slice().sort((a,b)=>a.id.localeCompare(b.id)),id);
