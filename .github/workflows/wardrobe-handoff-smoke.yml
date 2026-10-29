@@ -1,0 +1,71 @@
+name: Wardrobe handoff tests
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/wardrobe-handoff-smoke.yml'
+      - 'workflow.js'
+      - 'supabase/functions/wardrobe-handoff/**'
+      - 'tests/**'
+  workflow_dispatch:
+    inputs:
+      authenticated:
+        description: 'Run live JPEG test (requires a fresh isolated-trip token and scope variables)'
+        type: boolean
+        default: false
+jobs:
+  integration-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+      - run: node --test tests/*.test.cjs
+  connectivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Reachability and unauthorized access (no private images)
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://cdpiekcbvyvppaxbpwjz.supabase.co/functions/v1/wardrobe-handoff"
+          status=$(curl --silent --show-error --max-time 20 --output /tmp/handoff --write-out '%{http_code}' "$base")
+          test "$status" = "400"
+          scope="user=528aa8a5-3210-4bc0-b72a-4c742c8e9b81&wardrobe=w-mv3puf8qb2kei&trip=trip-integration-20261029&snapshot=58a53c32439c674b"
+          for credential in '' invalid-test-credential; do
+            status=$(curl --silent --show-error --max-time 20 --output /tmp/denied --write-out '%{http_code}' -H "Authorization: Bearer $credential" "$base?$scope&kind=sheet&id=outside.jpg")
+            test "$status" = "401"
+          done
+          echo 'PASS: endpoint reachable and absent/invalid credentials rejected. Authenticated retrieval is a separate test.'
+  authenticated-download:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.authenticated }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      HANDOFF_TEST_TOKEN: ${{ secrets.WARDROBE_HANDOFF_TEST_TOKEN }}
+      HANDOFF_TEST_SCOPE: ${{ vars.WARDROBE_HANDOFF_TEST_SCOPE }}
+      HANDOFF_TEST_SHEET: ${{ vars.WARDROBE_HANDOFF_TEST_SHEET }}
+    steps:
+      - name: Require private credential and isolated scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$HANDOFF_TEST_TOKEN" || { echo 'FAIL: authenticated download was requested but no protected test token is configured.'; exit 1; }
+          test -n "$HANDOFF_TEST_SCOPE" && test -n "$HANDOFF_TEST_SHEET"
+      - name: Download authorized JPEG without logging credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, urllib.request
+          base='https://cdpiekcbvyvppaxbpwjz.supabase.co/functions/v1/wardrobe-handoff'
+          url=base+'?'+os.environ['HANDOFF_TEST_SCOPE']+'&kind=sheet&id='+urllib.parse.quote(os.environ['HANDOFF_TEST_SHEET'])
+          request=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['HANDOFF_TEST_TOKEN']})
+          with urllib.request.urlopen(request,timeout=30) as response:
+              image=response.read()
+              assert response.status==200 and response.headers.get_content_type()=='image/jpeg'
+              assert len(image)>1000 and image[:3]==bytes.fromhex('ffd8ff') and image[-2:]==bytes.fromhex('ffd9')
+          print('PASS: authenticated JPEG retrieval. No image or credential published.')
+          PY
