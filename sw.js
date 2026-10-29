@@ -1,5 +1,5 @@
 // Keeps the app opening offline. Your clothes live in the device's own storage, not here.
-const CACHE = "wardrobe-v38";
+const CACHE = "wardrobe-v39";
 const FILES = ["./", "./index.html", "./workflow.js", "./auth-recovery.js", "./assets/paris.jpg", "./manifest.webmanifest", "./icon-180.png", "./icon-192.png", "./icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("wardrobe-v") && k !== CACHE).map(k => caches.delete(k))))); self.clients.claim(); });

@@ -1,6 +1,6 @@
 /* Subscription workflow: no model API calls. Existing records and sync stay intact. */
 'use strict';
-const APP_RELEASE='38';
+const APP_RELEASE='39';
 // Restore the native iPhone route used in v24-v28. Launch directly on a tap.
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const chatGPTRoute=()=>isIOS()?'com.openai.chat://':'https://chatgpt.com/';
@@ -180,7 +180,7 @@ async function syncHandoff(t,expectedWardrobe){
  if(snapshotId()!==t.snapshotId)throw new Error('The wardrobe changed during sync. Tap Continue to refresh the references.');
  await verifyHandoffReady(t,expectedWardrobe);
 }
-planTrip=async function(){const m=$('#planMsg'),b=$('#planBtn');b.disabled=true;handoffWorking=true;try{await waitForSync();if(!activeItems().length)throw new Error('Add clothes in Closet first.');const t=await saveBrief(),id=snapshotId();
+planTrip=async function(){const m=$('#planMsg'),b=$('#planBtn');b.disabled=true;handoffWorking=true;try{await waitForSync();if(session&&cloudReady()&&profile.cloudId){m.textContent='Syncing current wardrobe…';await syncNow();await waitForSync();if(syncState.err)throw new Error(syncState.text||'The current wardrobe could not be synced.');}if(!activeItems().length)throw new Error('Add clothes in Closet first.');const t=await saveBrief(),id=snapshotId();
  if(!session||!cloudReady()||!profile.cloudId){m.textContent='Sign in under More → Sync to have the proposal return automatically, or use the files below.';handoffPanel(await requestFiles(planningPrompt(t,id)),$('#requestFiles'),'File fallback');t.snapshotId=id;t.updatedAt=now();await putTrip(t);return}
  const wardrobe=profile.cloudId,faceVersion=faceSignature();m.textContent='Preparing wardrobe and face references…';
  const facePack=await handoffFaces();
@@ -268,8 +268,51 @@ const normalToCloud=toCloud;
 const normalFromCloud=fromCloud;
 fromCloud=async function(kind,c,old){const x=await normalFromCloud(kind,c,old);if(kind==='trip'&&x.optionalLooks)x.optionalLooks=await Promise.all(x.optionalLooks.map(look=>normalFromCloud('outfit',look,old?.optionalLooks?.find(previous=>previous.id===look.id))));return x;};
 toCloud=function(kind,x,uploads){if(kind==='trip'&&x.handoff?.photoSheets?.length)throw new Error('REFERENCE_PENDING');const c=normalToCloud(kind,x,uploads);if(kind==='trip'&&c.handoff?.photoAttachments){c.handoff={...c.handoff,photoAttachments:c.handoff.photoAttachments.map(sheet=>{if(!sheet.image?.startsWith('data:'))return {...sheet};const hash=photoHash(sheet.image);uploads.set(hash,sheet.image);return {...sheet,image:'sb:'+hash}})}}if(kind==='trip'&&c.optionalLooks)c.optionalLooks=c.optionalLooks.map(look=>normalToCloud('outfit',look,uploads));return c};
+function compareSyncStamp(a,b){
+ const x=Date.parse(a||''),y=Date.parse(b||'');
+ return Number.isFinite(x)&&Number.isFinite(y)?Math.sign(x-y):String(a||'').localeCompare(String(b||''));
+}
+function syncItemMetadata(value){
+ const {photos,thumb,_photoSources,...metadata}=value;
+ const stable=x=>Array.isArray(x)?x.map(stable):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,stable(x[k])])):x;
+ return JSON.stringify(stable(metadata));
+}
+async function reconcileItemSync(d,cloudId,status){
+ // An upload marker is a cache, not proof that another device has not replaced
+ // the server row. Compare actual records before trusting that marker.
+ const remote=new Map();
+ for(let offset=0;;offset+=1000){
+  const q=new URLSearchParams({select:'id,data,deleted,updated_at',user_id:'eq.'+session.uid,wardrobe:'eq.'+cloudId,kind:'eq.item',limit:'1000',offset:String(offset)});
+  const page=await api('/rest/v1/records?'+q)||[];for(const row of page)remote.set(row.id,row);if(page.length<1000)break;
+ }
+ const local=new Map((await getAll('items',d)).map(x=>[x.id,x]));
+ const pendingDeletes=new Set((await getAll('meta',d)).filter(x=>x.kind==='item'&&String(x.id).startsWith('del:')).map(x=>x.key));
+ const invalidate=new Set(),acknowledge=new Map();
+ for(const id of new Set([...local.keys(),...remote.keys()])){
+  if(pendingDeletes.has(id))continue;
+  const item=local.get(id),row=remote.get(id),key='item:'+id;
+  if(!row){if(item)invalidate.add(key);continue;}
+  const remoteStamp=row.deleted?(row.data.at||row.data.updatedAt||row.updated_at):STAMP.item(row.data);
+  const order=item?compareSyncStamp(STAMP.item(item),remoteStamp):-1;
+  if(item&&order>0){invalidate.add(key);continue;}
+  if(item&&order===0&&!row.deleted){
+   if((item.photos||[]).length!==(row.data.photos||[]).length||syncItemMetadata(item)!==syncItemMetadata(row.data))throw new Error('Conflicting saved versions for '+id+'. Both copies are preserved; this item needs reconciliation.');
+   acknowledge.set(key,STAMP.item(item)||'-');continue;
+  }
+  if(!item&&row.deleted)continue;
+  status('Reconciling saved wardrobe…');
+  const replacement=row.deleted?null:await fromCloud('item',row.data,item);
+  const latest=await dGet(d,'items',id);
+  if(item?(!latest||STAMP.item(latest)!==STAMP.item(item)||JSON.stringify(latest.photos)!==JSON.stringify(item.photos)):!!latest)continue;
+  if(replacement){await dPut(d,'items',replacement);acknowledge.set(key,STAMP.item(replacement)||'-');}
+  else{await dDel(d,'items',id);invalidate.add(key);}
+ }
+ const state=await syncState0(d);for(const key of invalidate)delete state.pushed[key];for(const [key,value]of acknowledge)state.pushed[key]=value;await dPut(d,'meta',state);
+ if(d===db)items=await getAll('items',d);
+}
 const normalPushWardrobe=pushWardrobe;
 pushWardrobe=async function(d,cloudId,status){
+ await reconcileItemSync(d,cloudId,status);
  for(let pass=0;pass<10;pass++){
  for(const trip of await getAll('trips',d)){
   if(!trip.handoff?.photoSheets?.length)continue;
@@ -303,7 +346,7 @@ let checkingReturnedPlans=false,shownProposalKey='';
 function renderMatchesPlan(plan,z){const variant=z.variant||'owned',look=variant==='owned'?(plan.outfits||[]).find(x=>x.date===z.date&&(x.slot||'day')===z.slot):(plan.optionalLooks||[]).find(x=>x.id===variant);return !!look&&JSON.stringify(look.itemIds)===JSON.stringify(z.itemIds)&&look.scene===z.scene&&JSON.stringify(look.productIds||[])===JSON.stringify(z.productIds||[]);}
 function missingRenders(plan){return [...(plan.outfits||[]).map(x=>({look:x,variant:'owned'})),...(plan.optionalLooks||[]).map(x=>({look:x,variant:x.id}))].filter(({look,variant})=>!lookRenders(plan,look,variant).length);}
 async function checkReturnedPlans(manual=false){
- if(checkingReturnedPlans||!session||!profile?.cloudId||!cloudReady())return;
+ if(checkingReturnedPlans||handoffWorking||!session||!profile?.cloudId||!cloudReady())return;
  checkingReturnedPlans=true;
  try{
   const rows=await api('/rest/v1/records?select=id,data&kind=eq.proposal&deleted=eq.false&wardrobe=eq.'+encodeURIComponent(profile.cloudId))||[];
