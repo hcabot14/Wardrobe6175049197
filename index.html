@@ -1903,7 +1903,7 @@ async function syncNow(){
     if(res.changed.has(dbName)){await loadAll();profile=await dGet(db,"meta","profile");renderAfterBackgroundSync()}
     if(res.added.length) toast(`Added from your other device: ${res.added.join(", ")}`);
     LS.set("wardrobe-lastsync",now()); syncing=false; setSync("Synced just now");
-    if(res.added.length) refreshMore();
+    // Background arrivals must not replace the active settings form or modal.
   }catch(e){syncing=false;setSync(e.message==="offline"?"Offline. It will sync when you're back online.":"Sync problem: "+e.message,true)}
   syncing=false; renderSyncFlag();
   if(syncAgain){syncAgain=false;scheduleSync(1000)}
@@ -2015,7 +2015,7 @@ function showTab(t){
   if(t==="outfits") t="trips"; // outfits live under Trips now
   tab=t; document.body.classList.toggle("home",t==="home"); document.querySelectorAll(".tabbar button").forEach(b=>b.classList.toggle("on",b.dataset.tab===(t==="add"?"closet":t)));
   for(const x of ["home","closet","outfits","add","trips","more"]) $("#tab-"+x).hidden=x!==t;
-  refreshTab(); window.scrollTo(0,0);
+  refreshTab(); window.scrollTo(0,0); if(typeof saveJourneyView==='function')saveJourneyView();
 }
 function refreshTab(){
   if(!profile) return;
@@ -2025,7 +2025,7 @@ function refreshTab(){
 function renderAfterBackgroundSync(){
   renderHeader();
   const editing=document.activeElement?.matches?.('input,textarea,select,[contenteditable="true"]');
-  if(!$("#modal").classList.contains("open")&&!editing&&(tab==="home"||tab==="closet"))refreshTab();
+  if(!$("#modal").classList.contains("open")&&!editing&&tab==="home")refreshTab();
 }
 function renderAll(){renderHeader();refreshTab()}
 document.querySelectorAll(".tabbar button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
@@ -2083,7 +2083,7 @@ if("serviceWorker" in navigator&&location.protocol==="https:") navigator.service
 <script src="workflow.js"></script>
 <script src="auth-recovery.js"></script>
 <script>
-bootWardrobe().catch(err=>{
+bootWardrobe().then(()=>restoreJourneyView()).catch(err=>{
   document.querySelector("main").innerHTML=`<div class="panel msg err">This browser blocked storage, so the app can't save anything (${esc(err.message)}). Open it in Safari or Chrome, outside a private window.</div>`;
 });
 </script>
