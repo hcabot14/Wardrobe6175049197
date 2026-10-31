@@ -1,0 +1,15 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+(async()=>{
+ const src=fs.readFileSync(__dirname+'/../workflow.js','utf8');const code=src.slice(src.indexOf('async function directLookFiles('),src.indexOf('function copyRequestPanel('));
+ const ids=['OW-012','KN-034','TR-027','FW-024'];const counts=[5,3,2,1];const items=ids.map((id,n)=>({id,photos:Array.from({length:counts[n]},(_,i)=>'data:image/jpeg;base64,'+id+'-'+i)}));
+ const look={date:'2027-01-13',slot:'day',itemIds:ids,scene:'Lisbon waterfront'};const plan={tripId:'trip-test',snapshotId:'current',outfits:[look]};let snapshot='current',faceVersion='faces',writes=0,shared;
+ const prepared={textContent:'',innerHTML:'',querySelector:s=>children[s]};const children={'[data-directlook]':{value:'0'},'[data-directpack]':prepared,'[data-preparelook]':{},'[data-sharelook]':{},'[data-downloadlook]':{},textarea:{}};
+ const out={textContent:'',innerHTML:'',querySelector:s=>children[s]};
+ const c=vm.createContext({File,Blob,JSON,Date,plan,look,out,faces:[{data:'data:image/jpeg;base64,face1'},{data:'data:image/jpeg;base64,face2'},{data:'data:image/jpeg;base64,not-selected'}],profile:{name:'Owner',person:'man',build:'natural',cloudId:'w-test'},session:{uid:'owner'},validatePlan:p=>assert.equal(p,plan),renderErrors:()=>'',snapshotId:()=>snapshot,faceSignature:()=>faceVersion,itemById:id=>items.find(x=>x.id===id),dataURLtoBlob:async u=>new Blob([u],{type:'image/jpeg'}),esc:s=>s,api:async(path,opts)=>{if(opts?.method)writes++;return [{data:{plan}}]},toast:()=>{},navigator:{canShare:({files})=>files.every(f=>f.type==='image/jpeg'),clipboard:{writeText:async()=>{}},share:async p=>{shared=p}}});vm.runInContext(code,c);
+ const pack=await vm.runInContext('directLookFiles(plan,look)',c);assert.equal(pack.files.length,13);assert.ok(pack.files.every(f=>f.type==='image/jpeg'));assert.equal(await pack.files[0].text(),'data:image/jpeg;base64,face1');assert.equal(await pack.files[12].text(),'data:image/jpeg;base64,FW-024-0');assert.ok(pack.prompt.includes('ALL 13'));assert.ok(!pack.prompt.includes('Bearer'));assert.equal(pack.metadata.scene,look.scene);
+ snapshot='stale';assert.throws(pack.fresh,/changed/);snapshot='current';faceVersion='changed';assert.throws(pack.fresh,/changed/);faceVersion='faces';
+ await vm.runInContext("showDirectOutfits('trip-test',out)",c);await children['[data-preparelook]'].onclick({currentTarget:{}});await children['[data-sharelook]'].onclick();assert.equal(shared.files.length,13);assert.deepEqual(Object.keys(shared),['files']);assert.equal(writes,0);assert.equal(plan.outfits.length,1);
+ children['[data-directlook]'].onchange();assert.equal(prepared.textContent,'');
+ items[0].photos=['https://unapproved.test/photo.jpg'];await assert.rejects(vm.runInContext('directLookFiles(plan,look)',c),/could not be loaded/);
+ console.log('Passed: 13 original image files, all selected views, no text-file share attachment or private token, explicit share gesture, stale rejection, selection reset, no proposal writes.');
+})().catch(e=>{console.error(e);process.exitCode=1});
