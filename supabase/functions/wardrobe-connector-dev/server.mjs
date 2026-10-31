@@ -21,6 +21,9 @@ function base64(bytes){let s='';for(let i=0;i<bytes.length;i+=8192)s+=String.fro
 export function createServer(config,{fetch:request=fetch,now=Date.now}={}){
  const base=httpsUrl(config.supabaseUrl).origin,resource=httpsUrl(config.resourceUrl).href;
  const issuer=base+'/auth/v1',clientIds=config.clientIds||[];
+ // Supabase strips /functions/v1 at its gateway; keep both exact paths valid.
+ const resourcePath=new URL(resource).pathname;
+ const routePaths=new Set([resourcePath,resourcePath.replace(/^\/functions\/v1(?=\/)/,'')]);
  const trustedOrigins=new Set((config.fileOrigins||[]).map(x=>httpsUrl(x).origin));
  const headers={apikey:config.serviceKey,Authorization:'Bearer '+config.serviceKey};
  const json=(body,status=200,extra={})=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store',...extra}});
@@ -83,8 +86,8 @@ export function createServer(config,{fetch:request=fetch,now=Date.now}={}){
  return async req=>{
   try{
    const url=new URL(req.url);
-   if(url.pathname===new URL(resource).pathname+'/.well-known/oauth-protected-resource')return json({resource,authorization_servers:[issuer],scopes_supported:['openid'],bearer_methods_supported:['header']});
-   if(url.pathname!==new URL(resource).pathname)return json({error:'Not found'},404);
+   if([...routePaths].some(path=>url.pathname===path+'/.well-known/oauth-protected-resource'))return json({resource,authorization_servers:[issuer],scopes_supported:['openid'],bearer_methods_supported:['header']});
+   if(!routePaths.has(url.pathname))return json({error:'Not found'},404);
    if(req.method!=='POST')return json({error:'Use MCP POST'},405,{'Allow':'POST'});
    if(req.headers.has('Origin')&&req.headers.get('Origin')!=='https://chatgpt.com')return json({error:'Origin not allowed'},403);
    if(!req.headers.get('Content-Type')?.startsWith('application/json'))return json({error:'Use application/json'},415);

@@ -35,6 +35,8 @@ const assert=require('node:assert/strict');
  response=await rpc('tools/list',{},'');assert.equal((await response.json()).result.tools.length,5);assert.equal(authCalls,0);assert.equal(requests.length,0);
  const upload=toolDescriptors.find(x=>x.name==='upload_render');assert.deepEqual(upload._meta['openai/fileParams'],['image']);assert.deepEqual(upload.inputSchema.properties.image.required,['download_url','file_id']);
  response=await serve(new Request(resource+'/.well-known/oauth-protected-resource'));assert.equal((await response.json()).resource,resource);
+ response=await serve(new Request(base+'/wardrobe-connector-dev',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'})}));assert.equal(response.status,200);assert.equal((await response.json()).result.tools.length,5);
+ response=await serve(new Request(base+'/wardrobe-connector-dev/.well-known/oauth-protected-resource'));assert.equal((await response.json()).resource,resource);
  let result=await call('get_trip_bundle',{},'');assert.equal(result.response.status,401);assert.match(result.response.headers.get('WWW-Authenticate'),/resource_metadata/);
  result=await call('get_trip_bundle',{},'forged');assert.equal(result.response.status,401);
  for(const patch of [{aud:'https://other.test'},{iss:'https://other.test'},{client_id:'other'},{exp:1},{scope:'email'},{role:'service_role'},{sub:'different'},{nbf:clock/1000+60}]){acceptedToken=jwt({...claim,...patch});result=await call('get_trip_bundle');assert.equal(result.response.status,401)}acceptedToken=jwt(claim);
