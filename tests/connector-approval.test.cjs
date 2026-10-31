@@ -24,7 +24,8 @@ const assert=require('node:assert/strict');
  returnAddress='https://evil.test/?code=TEST';await assert.rejects(approval.decide('authorization-test','approve'),/Unexpected/);returnAddress=redirect+'?error=access_denied';
  await approval.decide('authorization-test','deny');assert.equal(writes.at(-1).deleted,true);
  await assert.rejects(approval.decide('authorization-test','approve'),/Choose and approve/);
- for(const patch of [{client:{id:'other'}},{user:{id:'other'}},{redirect_uri:'https://evil.test'},{scope:'openid email'}]){const old=structuredClone(details);Object.assign(details,patch);await assert.rejects(approval.loadAuthorization('authorization-test'),/does not match/);Object.assign(details,old)}
+ for(const patch of [{client:{id:'other'}},{user:{id:'other'}},{redirect_uri:'https://evil.test'},{scope:'openid phone'}]){const old=structuredClone(details);Object.assign(details,patch);await assert.rejects(approval.loadAuthorization('authorization-test'),/does not match/);Object.assign(details,old)}
+ details.scope='openid email offline_access';assert.equal((await approval.loadAuthorization('authorization-test')).scope,details.scope);
  saved.exp=now-1;await approval.preparedTrips();assert.equal(saved.access,'NEW-PRIVATE-SESSION');
  await assert.rejects(createApproval({...config,clientId:''}).preparedTrips(),/not configured/);
  console.log('Passed: owner session refresh, exact OAuth client/account/callback/scopes, prepared-trip projection, stale rejection, 24-hour grant, cancellation/revocation and safe redirect (mock backend).');

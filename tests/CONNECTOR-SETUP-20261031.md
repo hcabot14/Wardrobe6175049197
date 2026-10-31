@@ -11,3 +11,10 @@ Development function version 3 now recognizes only the dedicated client (or expl
 Publishing the approval page's public client ID to main was rejected by automatic approval review, which cited the original development-branch scope. A specific approval request is pending. The published approval page still has an empty client ID and therefore fails closed. The original approved standalone page publication was commit a3b84cb95ac7f3231567d7e3310748d6e4172bf9.
 
 No custom plugin was created/installed, no private trip grant was issued, and no private images were downloaded/uploaded in this session. OAuth identity propagation, token acceptance by /user with the custom audience, actual tool image delivery and complete lookbook return remain untested. No merge or model API calls.
+
+
+## Live consent test
+
+User approved publication of the client ID; main commit cb731e7eddf3ff1f7e5ba56ab4ae34ce9689b6b4 is live. User approved creating/installing Wardrobe development in ChatGPT. Its Connect action reached the correct standalone approval page. Chrome Wardrobe sign-in was completed and verified. A fresh isolated Boston connector test trip was prepared through the signed-in app (trip-mvw5ksmvfg05j, snapshot 0c0816c0962ca305); no trip grant has been issued.
+
+The real OAuth request asks for openid email offline_access. The original consent page permits only openid and rejected it. A narrow allowlist fix and explicit scope display passed the approval unit tests, while unrelated phone scope remains rejected. Automatic approval review blocked publishing this authentication/privacy change; explicit user approval of account-email and refresh-token scopes is pending. Full OAuth exchange, private images, uploads and return remain unverified.
