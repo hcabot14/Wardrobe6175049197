@@ -9,3 +9,9 @@ The existing handoff capability is copied only for the exact existing /functions
 Passed local checks: private-lookbook-request.test.cjs; lookbook-batch.test.cjs (retained export fallback); trip-interaction.test.cjs; workflow.test.cjs; background-sync.test.cjs; handoff-preflight.test.cjs. Test capabilities are artificial fixtures. git diff --check passed.
 
 Live authenticated photo download and live app verification pending. A complete 21-image generation/upload run is not established by these checks. The recipient must have authenticated outbound HTTP, local file/image access and built-in image generation; the request explicitly reports a missing capability rather than recommending a ZIP that was never attached or promising an app rollback can provide those tools.
+
+## Approved publication and live checks
+
+Automatic review initially rejected moving main because full transfer/render/return remained unverified under the prior development-only restriction. The user subsequently explicitly approved publishing the earlier private-download workflow for testing. Main advanced to f024d24c246f23ddb173105efb262ecf4710a1f6; only workflow.js and sw.js were changed, with no connector PR merge. Live workflow.js and sw.js matched the tested local bytes. The signed-in existing trip passed verifyHandoffReady and displayed 21 looks / private photo download with Render enabled and no ZIP attachment requirement. Screenshot: /private/tmp/wardrobe-v47-live.png. No request was sent to a recipient chat in this publication check, and no trip/proposal/image was changed.
+
+Read-only connector checks before publication also retrieved the matching live bundle (snapshot 0c0816c0962ca305), one actual face JPEG payload and one OW-012 garment JPEG payload. These are server/connector retrieval checks, not proof that the receiving phone chat can do authenticated HTTP or generate/return all 21 images.
