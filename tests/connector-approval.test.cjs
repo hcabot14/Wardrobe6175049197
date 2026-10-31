@@ -13,6 +13,7 @@ const assert=require('node:assert/strict');
  if(u.pathname==='/rest/v1/records'){if(options.method){writes.push(JSON.parse(options.body));return new Response(null,{status:204})}assert.equal(u.searchParams.get('user_id'),'eq.owner');return Response.json([trip,{id:'expired',data:{snapshotId:'x',handoff:{returnAccess:{expiresAt:'2000-01-01'}}}}])}throw Error('Unexpected request')};
  const config={base,anon:'PUBLIC-KEY',clientId:'client-test',redirectUri:redirect,resource:base+'/mcp',storage,fetch:network,now:()=>now};
  const approval=createApproval(config);
+ const installed=createApproval(config);const prepared=await installed.preparedTrips();await installed.approveTrip(prepared[0]);assert.equal(writes.pop().data.snapshot,'current');await assert.rejects(installed.decide('authorization-test','approve'),/Load/);calls.length=0;
  await assert.rejects(approval.decide('authorization-test','approve'),/Load/);
  await assert.rejects(approval.loadAuthorization('../evil'),/Open this page/);assert.equal(calls.length,0);
  assert.equal((await approval.loadAuthorization('authorization-test')).clientName,'ChatGPT');
