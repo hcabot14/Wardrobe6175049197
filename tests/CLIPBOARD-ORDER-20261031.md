@@ -1,0 +1,9 @@
+# Clipboard-before-navigation correction — October 31, 2026
+
+During the approved v47 receiving-chat test, Render reported copied but the browser-controlled clipboard and a native paste into an isolated local page still contained an older request. No mismatched request was sent. The in-app and Chrome tests both observed stale clipboard content; automation effects cannot be excluded.
+
+A harmless local fixture with navigator.clipboard.writeText awaited before further action copied its exact expected test marker successfully. The v47 code began asynchronous copying and immediately opened another window, potentially moving focus before copying finished. v48 keeps the document focused until the clipboard promise resolves, then navigates the same tab to ChatGPT. Generate and its retry action follow the same order. Render does not navigate or claim success on clipboard failure; the existing manual-copy recovery is retained with an explicit open link. No transport capability, trip access scope or expiry changes.
+
+Five checks pass: private-lookbook-request.test.cjs (including copy success ordering and rejected-copy non-navigation), trip-interaction.test.cjs, workflow.test.cjs, lookbook-batch.test.cjs, background-sync.test.cjs. The final Render branch refinement was rechecked with the first two tests. git diff --check passed.
+
+A direct database query for the trip returnAccess capability was rejected by automatic approval review because it could expose credential material not specifically authorized through that method. It was not executed or retried. The synthetic clipboard test did not need credential access. Normal app-to-ChatGPT copying is the user-approved handoff, and is still pending a fresh live receiving-chat test after this correction. No images were generated or uploaded during this clipboard diagnosis.
