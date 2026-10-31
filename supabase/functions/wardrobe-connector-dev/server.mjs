@@ -47,7 +47,7 @@ export function createServer(config,{fetch:request=fetch,now=Date.now}={}){
   if(write&&args.snapshot!==trip.snapshotId)fail(409,'Stale snapshot');
   // Never trust returnAccess.endpoint from a row. The only upstream is our own handoff service.
   const endpoint=new URL(base+'/functions/v1/wardrobe-handoff');endpoint.search=new URLSearchParams({user:principal.userId,wardrobe:args.wardrobe_id,trip:args.trip_id,snapshot:trip.snapshotId}).toString();
-  return {endpoint,token:access.token,trip,principal};
+  return {endpoint,token:access.token,trip,principal,expiresAt:new Date(Math.min(Date.parse(access.expiresAt),Date.parse(grant.expiresAt))).toISOString()};
  }
  async function upstream(binding,query,options={}){const u=new URL(binding.endpoint);for(const [k,v]of Object.entries(query))u.searchParams.set(k,v);const r=await request(u.href,{...options,headers:{...options.headers,Authorization:'Bearer '+binding.token},redirect:'error',signal:AbortSignal.timeout(30000)});if(!r.ok)fail(r.status===409?409:502,r.status===409?'Trip or catalog changed, or required renders are missing':'Private handoff operation failed');return r}
  async function invoke(principal,name,args){
@@ -59,7 +59,7 @@ export function createServer(config,{fetch:request=fetch,now=Date.now}={}){
   if(name==='get_trip_bundle'){
    const data=await(await upstream(b,{kind:'bundle'})).json();if(!data.catalogMatches)fail(409,'Catalog changed; prepare a fresh handoff');
    // Explicit projection. No access token, private endpoint, storage URL or session is returned.
-   return text({tripId:args.trip_id,snapshotId:b.trip.snapshotId,instructions:data.instructions,catalog:data.catalog,currentCatalog:data.currentCatalog,photoAttachments:(data.photoAttachments||[]).map(x=>({filename:x.filename,itemIds:x.itemIds})),faceAttachments:(data.faceAttachments||[]).map(x=>({id:x.id})),expiresAt:data.expiresAt});
+   return text({tripId:args.trip_id,snapshotId:b.trip.snapshotId,instructions:data.instructions,catalog:data.catalog,currentCatalog:data.currentCatalog,photoAttachments:(data.photoAttachments||[]).map(x=>({filename:x.filename,itemIds:x.itemIds})),faceAttachments:(data.faceAttachments||[]).map(x=>({id:x.id})),expiresAt:b.expiresAt});
   }
   if(name==='get_reference_image'){
    const index=args.index??0;if(!['sheet','face','item'].includes(args.kind)||typeof args.id!=='string'||!args.id||!Number.isInteger(index)||index<0||index>40)fail(400,'Invalid reference');
@@ -77,7 +77,7 @@ export function createServer(config,{fetch:request=fetch,now=Date.now}={}){
    const image=args.image;if(!image||typeof image.file_id!=='string'||!image.file_id||typeof image.download_url!=='string')fail(400,'Supply a ChatGPT file');
    let u;try{u=httpsUrl(image.download_url)}catch{fail(400,'Invalid file URL')}
    // Exact configured ChatGPT file origins only; no wildcards or redirected/private endpoints.
-   if(!trustedOrigins.has(u.origin))fail(400,'File origin has not been approved for this deployment');
+   if(!trustedOrigins.has(u.origin))fail(400,'File origin has not been approved for this deployment: '+u.origin);
    const r=await request(u.href,{redirect:'error',signal:AbortSignal.timeout(30000)});if(!r.ok)fail(502,'ChatGPT file download failed');
    const bytes=await limitedBytes(r,MAX_IMAGE),mime=imageType(bytes),form=new FormData();form.set('image',new File([bytes],'render.'+(mime==='image/png'?'png':'jpg'),{type:mime}));form.set('metadata',JSON.stringify(args.metadata));
    return text(await(await upstream(b,{}, {method:'POST',body:form})).json());

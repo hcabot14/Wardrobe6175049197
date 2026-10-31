@@ -1,0 +1,21 @@
+# Live connector verification — October 31, 2026
+
+## Verified so far
+
+- User explicitly approved publication of the public client ID on main, the standard ChatGPT identity/email/refresh scopes, private connector creation/installation, and one isolated trip's references/proposals/generated images for up to 24 hours.
+- The standalone approval page is published. Main commits cb731e7 (client ID), 2f5b930 (exact sign-in scope allowlist), f8e03a5 (visible scope description). Unrelated phone scope remains rejected by local tests.
+- The real OAuth flow reached the correct page after ordinary Chrome Wardrobe sign-in, verified the exact client/account/callback, recorded the selected trip grant, returned to ChatGPT, and installed Wardrobe development. Supabase confirms one OAuth session. ChatGPT displays the plugin under Installed.
+- Trip grant: trip-mvw5ksmvfg05j, wardrobe w-mv3puf8qb2kei, snapshot 0c0816c0962ca305. Grant expires 2026-11-01T08:50:18.682Z; the underlying handoff expires later. Other trips are not approved by this grant.
+- The actual recipient project chat invoked get_trip_bundle and get_reference_image through the installed MCP connector. It reported matching live catalog/snapshot, nine sheets and two face references. It displayed and visually described the first sheet (36 labeled blazer/footwear references) and a real face portrait. No manually copied bearer token, HTTP Python or SQL was used by the recipient.
+- The recipient reports inspecting all nine sheets, both face references and the five selected garments. Actual save_proposal succeeded; independent SQL confirmed the staged proposal status rendering and matching snapshot. Saved owned outfit IDs: OW-019, KN-016, TR-027, FW-024, TS-013.
+- Built-in Create image produced a real landscape front/back diptych, visually inspected in the browser. This required an explicit Create image step; automatic generation in connector mode was not demonstrated. Exact garment fidelity and complete reference attachment were not independently audited.
+- The actual upload_render call reached the server with a transformed ChatGPT file object. Empty source allowlist correctly rejected it. Version 5 added origin-only diagnostics (no signed path/query); retry established https://oaisdmntpreastus2.blob.core.windows.net. Version 6 permits that exact observed origin only, with redirects still blocked, 12 MB limit and PNG/JPEG sniffing. Explicitly empty environment configuration still locks uploads. The subsequent real upload succeeded, followed by complete_proposal returning saved:true/status complete at 2026-10-31T09:00:34.467Z.
+- A reporting bug exposed the underlying 48-hour handoff expiry rather than the shorter grant. Enforcement already checked the grant on every call. Development function version 4 now returns the minimum of handoff and grant expiries; the regression test passed.
+
+## Remaining acceptance limits
+
+The real completion gate accepted the saved matching image. Wardrobe fetched the completed proposal and displayed “Your complete lookbook is ready,” one outfit, five pieces and one render. The actual preview loaded at 1672 × 941 pixels. It is left at the user review step (Save complete lookbook), not silently accepted. Byte-for-byte source/storage hash comparison remains unverified. Reference-grounded generation fidelity requires review. Real file-input transformation was observed, but successful transfer is not yet verified. Physical iPhone switching, public multi-user onboarding and a complete one-tap journey are not acceptance-tested. Do not market this as a finished public release.
+
+Normal owner visibility and OAuth direct-data denial were verified under the installed RLS policies. The auth-admin-only audience hook preserved ordinary app audiences in SQL tests; real OAuth-to-MCP retrieval now demonstrates token acceptance. No PR was merged and no paid model API was called.
+
+MCP regression tests passed using the bundled Node runtime and mocked network, including shorter grant-expiry projection and origin-only diagnostics that exclude private signed paths/queries. No separate CI or physical-phone run is claimed. Screenshot: /private/tmp/wardrobe-returned-lookbook.png (local evidence, not committed).
