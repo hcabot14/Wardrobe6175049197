@@ -1,4 +1,4 @@
--- REVIEWED PLAN ONLY: not applied. Restrictive policies AND with existing owner policies.
+-- Applied October 30, 2026 after user approval. Restrictive policies AND with existing owner policies.
 -- Ordinary app sessions do not have a client_id claim. OAuth sessions must use the trip-scoped bridge.
 begin;
 create policy "connector no direct record access" on public.records

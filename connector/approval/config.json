@@ -1,6 +1,6 @@
 {
   "supabaseUrl": "https://cdpiekcbvyvppaxbpwjz.supabase.co",
-  "clientId": "",
+  "clientId": "ead70a6a-6324-4585-8f03-012ea98a8e3e",
   "redirectUri": "https://chatgpt.com/connector/oauth/E9GREkMp5BhT",
   "resource": "https://cdpiekcbvyvppaxbpwjz.supabase.co/functions/v1/wardrobe-connector-dev",
   "anon": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkcGlla2Nidnl2cHBheGJwd2p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2ODU3NTYsImV4cCI6MjEwNzI2MTc1Nn0.NfgXzQK0x4GXz4Snyk-snBJrSfFu7MUw0cX50CEA998"

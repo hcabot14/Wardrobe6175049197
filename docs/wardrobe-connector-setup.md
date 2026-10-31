@@ -49,3 +49,6 @@ Every private call verifies the bearer token using Supabase Auth `/user`, then c
 
 
 Approval preparation and the rolled-back RLS test are recorded in `tests/CONNECTOR-APPROVAL-20261030.md`. The current Supabase enable form and ChatGPT plugin form are prepared but have not been submitted.
+
+
+October 31 update: OAuth is enabled, the restrictive policies are installed, the dedicated PKCE client is registered, and the auth-admin-only audience hook is enabled. Live sign-in and private-tool tests remain outstanding. See `tests/CONNECTOR-SETUP-20261031.md`; publication of the approval-page client ID was blocked by automatic approval review and requires specific confirmation.
