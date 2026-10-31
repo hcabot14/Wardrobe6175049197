@@ -1,6 +1,6 @@
 /* Subscription workflow: no model API calls. Existing records and sync stay intact. */
 'use strict';
-const APP_RELEASE='42';
+const APP_RELEASE='43';
 // Restore the native iPhone route used in v24-v28. Launch directly on a tap.
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 // This opens the saved conversation; clipboard handoff still requires paste/send.
@@ -154,12 +154,46 @@ First call get_trip_bundle with wardrobe_id and trip_id. Follow its current plan
 ${renderTransferInstructions(t)}`;
 }
 
+// Direct attachments preserve the older generation path without a registration widget.
+async function directLookFiles(plan,look){
+ validatePlan(plan);
+ if(!(plan.outfits||[]).includes(look))throw new Error('Choose an owned outfit from this saved proposal.');
+ const error=renderErrors(look);if(error)throw new Error(error);
+ const snapshot=plan.snapshotId,faceVersion=faceSignature(),wardrobe=profile.cloudId;
+ const refs=faces.slice(0,2).map((f,i)=>({u:f.data,name:'Face-reference-'+(i+1)}));
+ for(const id of look.itemIds){const it=itemById(id);(it.photos||[]).forEach((u,i)=>refs.push({u,name:id+'-'+i}))}
+ const files=[];
+ for(const ref of refs){let u=ref.u;if(typeof u==='string'&&u.startsWith('sb:'))u=await downloadPhoto(u.slice(3));if(typeof u!=='string'||!u.startsWith('data:image/'))throw new Error('A reference photo could not be loaded. Sync and try again.');const blob=await dataURLtoBlob(u);if(!blob.size||!['image/jpeg','image/png'].includes(blob.type))throw new Error('A reference is not a readable JPEG or PNG.');files.push(new File([blob],ref.name+(blob.type==='image/png'?'.png':'.jpg'),{type:blob.type}));}
+ const fresh=()=>{if(snapshotId()!==snapshot||faceSignature()!==faceVersion||profile.cloudId!==wardrobe)throw new Error('Your photos changed. Prepare this outfit again.');};fresh();
+ const metadata={date:look.date,slot:look.slot||'day',variant:'owned',itemIds:look.itemIds,scene:look.scene};
+ const prompt=`Create ONE actual outfit image using ALL ${files.length} attached original photographs as image-generation references. Face-reference files show ${profile.name}; preserve the actual face, age, skin texture and build (${profile.person}, ${profile.build||'not specified'}), with no beautification or generic substitute. Match every garment to its named full reference photographs, including back/detail views. Use a landscape diptych: full-body front and three-quarter-back views of the same person. Scene: ${look.scene}. Do not invent accessories, logos or unseen details. If any attachment is missing or cannot be supplied to image generation, stop and identify the missing filename; do not generate from descriptions alone. Use the built-in Create image control if needed; no paid model API.
+This is one look from my saved Wardrobe proposal; do not replace or regenerate the plan. Exact return scope: ${JSON.stringify({wardrobe_id:wardrobe,trip_id:plan.tripId,snapshot,proposal_id:plan.tripId})}. Exact upload metadata: ${JSON.stringify(metadata)}. After owner review, the installed Wardrobe development connector can upload_render with the actual generated file and this metadata. Do not call complete_proposal until ALL expected saved looks have images. If the connector is unavailable, save the generated image and add it in Wardrobe; do not claim automatic return.`;
+ return {files,prompt,fresh,metadata};
+}
+async function showDirectOutfits(tripId,out){
+ out.textContent='Loading your saved outfit proposal…';
+ try{
+  if(!session||!profile.cloudId)throw new Error('Sign in and sync this trip first.');
+  const rows=await api('/rest/v1/records?select=data&kind=eq.proposal&deleted=eq.false&wardrobe=eq.'+encodeURIComponent(profile.cloudId)+'&id=eq.'+encodeURIComponent(tripId));
+  const plan=rows?.[0]?.data?.plan;if(!plan||plan.tripId!==tripId)throw new Error('No saved proposal yet. Plan the trip in ChatGPT first, then return here.');validatePlan(plan);
+  out.innerHTML='<p>Send the actual face and garment photos for one saved outfit to ChatGPT. Your saved plan is unchanged.</p><label>Choose outfit<select data-directlook>'+plan.outfits.map((x,i)=>`<option value="${i}">${esc(x.date+' '+(x.slot||'day')+' · '+(x.name||x.place||'Outfit'))}</option>`).join('')+'</select></label><button data-preparelook>Prepare outfit photos</button><div data-directpack role="status"></div>';
+  out.querySelector('[data-directlook]').onchange=()=>{out.querySelector('[data-directpack]').textContent='';};
+  out.querySelector('[data-preparelook]').onclick=async e=>{const b=e.currentTarget,el=out.querySelector('[data-directpack]');b.disabled=true;el.textContent='Preparing original face and garment files…';try{
+   const pack=await directLookFiles(plan,plan.outfits[Number(out.querySelector('[data-directlook]').value)]);
+   el.innerHTML=`<p>${pack.files.length} original photos ready. Choose Share photos, select ChatGPT, then paste the copied instructions and select Create image. Review the face and clothing before saving.</p><button data-sharelook>Share photos to ChatGPT</button><button data-downloadlook>Download photo packet</button><details><summary>Image instructions</summary><textarea readonly aria-label="Outfit image instructions"></textarea></details>`;el.querySelector('textarea').value=pack.prompt;
+   el.querySelector('[data-sharelook]').onclick=()=>{try{pack.fresh();if(!navigator.canShare?.({files:pack.files}))throw new Error('File sharing is unavailable in this browser. Use Download photo packet.');if(navigator.clipboard?.writeText)navigator.clipboard.writeText(pack.prompt).catch(()=>toast('Open Image instructions below and copy them before sending.'));else toast('Open Image instructions below and copy them before sending.');navigator.share({files:pack.files}).catch(err=>{if(err.name!=='AbortError')toast(err.message)})}catch(err){toast(err.message)}};
+   el.querySelector('[data-downloadlook]').onclick=async()=>{try{pack.fresh();const zip=await zipFiles([new File([pack.prompt],'Image-instructions.txt',{type:'text/plain'}),...pack.files]);pack.fresh();saveBlob(zip,'Wardrobe-outfit-'+pack.metadata.date+'-'+pack.metadata.slot+'.zip')}catch(err){toast(err.message)}};
+  }catch(err){el.textContent=err.message}finally{b.disabled=false}};
+ }catch(err){out.textContent=err.message}
+}
+
 function copyRequestPanel(t,out,files){
  const text=connectedRequest(t),preparedAt=t.handoff.preparedAt,faceVersion=faceSignature();
  const fresh=()=>{if(faceSignature()!==faceVersion||snapshotId()!==t.snapshotId||trips.find(x=>x.id===t.id)?.handoff?.preparedAt!==preparedAt)throw new Error('The wardrobe or request changed. Tap Continue to prepare fresh photos.');};
  const packet=[new File([text],'Start-here.txt',{type:'text/plain'}),...files];
  const shareable=!!(navigator.canShare&&navigator.canShare({files}));
- out.innerHTML=`<p class="muted sm">Your trip and photos are ready. Preparing this request authorizes the installed connector to use this trip’s wardrobe and face references and return outfits and images for up to 24 hours. Open ChatGPT and attach @Wardrobe development before pasting.</p><a class="btn primary" href="${chatGPTRoute()}" ${isIOS()?'':'target="_blank" rel="noopener"'} data-routechat>Route to ChatGPT</a><p class="muted sm" data-projectstatus></p><details><summary>ChatGPT project destination</summary><label for="wardrobe-project-url">Paste your Wardrobe project or conversation link</label><input id="wardrobe-project-url" data-projecturl type="url" placeholder="https://chatgpt.com/g/g-p-…" autocomplete="off"><button type="button" data-saveproject>Save destination</button><p class="muted sm">Opens your saved destination in a browser; paste the copied trip request there. ChatGPT cannot automatically receive or run the request from this link.</p></details><div data-copyresult class="msg" role="status"></div><details><summary>Other options</summary><div class="row"><button data-sendtrip>${shareable?'Share photos':'Download trip packet'}</button><button data-copytrip>Copy request</button><button data-downloadphotos>Download packet</button><a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Use website</a><button data-checkplan>Check for finished lookbook</button><a class="btn" href="./connector.html?trip=${encodeURIComponent(t.id)}" target="_blank" rel="noopener">Manage trip access</a></div><button data-filefallback>Prepare for Claude or another chat</button><div data-fallbackout></div></details>`;
+ out.innerHTML=`<p><button class="primary" data-directreferences>Generate images from saved outfits</button></p><div data-directout></div><p class="muted sm">Your trip and photos are ready. Preparing this request authorizes the installed connector to use this trip’s wardrobe and face references and return outfits and images for up to 24 hours. Open ChatGPT and attach @Wardrobe development before pasting.</p><a class="btn primary" href="${chatGPTRoute()}" ${isIOS()?'':'target="_blank" rel="noopener"'} data-routechat>Route to ChatGPT</a><p class="muted sm" data-projectstatus></p><details><summary>ChatGPT project destination</summary><label for="wardrobe-project-url">Paste your Wardrobe project or conversation link</label><input id="wardrobe-project-url" data-projecturl type="url" placeholder="https://chatgpt.com/g/g-p-…" autocomplete="off"><button type="button" data-saveproject>Save destination</button><p class="muted sm">Opens your saved destination in a browser; paste the copied trip request there. ChatGPT cannot automatically receive or run the request from this link.</p></details><div data-copyresult class="msg" role="status"></div><details><summary>Other options</summary><div class="row"><button data-sendtrip>${shareable?'Share photos':'Download trip packet'}</button><button data-copytrip>Copy request</button><button data-downloadphotos>Download packet</button><a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Use website</a><button data-checkplan>Check for finished lookbook</button><a class="btn" href="./connector.html?trip=${encodeURIComponent(t.id)}" target="_blank" rel="noopener">Manage trip access</a></div><button data-filefallback>Prepare for Claude or another chat</button><div data-fallbackout></div></details>`;
+ out.querySelector('[data-directreferences]').onclick=()=>showDirectOutfits(t.id,out.querySelector('[data-directout]'));
  const projectInput=out.querySelector('[data-projecturl]'),routeLink=out.querySelector('[data-routechat]'),projectStatus=out.querySelector('[data-projectstatus]');
  projectInput.value=savedWardrobeProjectUrl();
  const refreshProjectRoute=()=>{
@@ -285,7 +319,7 @@ applyPlan=async function(r){const original=validatePlan(r),t=structuredClone(ori
 };
 const oldOpenTrip=openTrip;
 openTrip=function(id){oldOpenTrip(id);const t=allTrips().find(x=>x.id===id);if(!t)return;const os=tripOutfits(t),pack=[...new Set(os.flatMap(o=>o.itemIds))].map(itemById).filter(Boolean);const sheet=$('#sheet');
- if(!t.imported){sheet.querySelector('.shead').insertAdjacentHTML('afterend',`<div class="row"><button id="continueJourney">Continue planning</button></div>`);$('#continueJourney').onclick=()=>editJourney(t.id)}
+ if(!t.imported){sheet.querySelector('.shead').insertAdjacentHTML('afterend',`<div class="row"><button id="continueJourney">Continue planning</button><button id="directJourneyImages">Generate outfit images</button><div id="directJourneyOut"></div></div>`);$('#continueJourney').onclick=()=>editJourney(t.id);$('#directJourneyImages').onclick=()=>showDirectOutfits(t.id,$('#directJourneyOut'))}
  const panels=[...sheet.querySelectorAll('.panel')],packing=panels.find(p=>p.querySelector('.packing'));if(packing){packing.innerHTML=`<h3>Packing list · ${pack.length} pieces</h3>${pack.map(it=>`<label class="packrow"><input type="checkbox" data-packed="${esc(it.id)}" ${(t.packed||[]).includes(it.id)?'checked':''}><img src="${thumbOf(it)||''}" alt=""><span>${esc(it.id)} · ${esc(it.name)}${it.archived?' (archived)':''}</span></label>`).join('')}`;packing.onchange=async e=>{if(!e.target.dataset.packed||t.imported)return;const actual=trips.find(x=>x.id===t.id);const set=new Set(actual.packed||[]);e.target.checked?set.add(e.target.dataset.packed):set.delete(e.target.dataset.packed);actual.packed=[...set];actual.updatedAt=now();await putTrip(actual)}}
  const gaps=panels.find(p=>p.querySelector('.gaps'));if(gaps)gaps.innerHTML=productCards(t.gaps);
  if(t.optionalLooks?.length)sheet.insertAdjacentHTML('beforeend',optionalCards(t.optionalLooks,t.gaps));
