@@ -1,6 +1,6 @@
 # Trip interaction iteration — October 31, 2026
 
-Development-only release 45; not published to main. Larger connector PR remains unmerged.
+Release 45 was initially development-only. The user explicitly approved publishing the interface update for testing. Only index.html, workflow.js and sw.js were published to main in commit 1105d25af7bf4b8badcc443297dc7a67fd85b409; the larger connector PR remains unmerged.
 
 ## Result
 
@@ -29,3 +29,7 @@ Screenshots: /private/tmp/wardrobe-v45-render-preview.png and /private/tmp/wardr
 ## Remaining failure
 
 The user's connector image content failed display with AioRpcError. No server-side fix or clean retry is proven in this iteration. The planning prompt now stops at save_proposal and directs an image-display failure to Send photo references, which shares/downloads the actual prepared sheets/face files for attachment. Rendering uses the original-file route confirmed accurate by the owner in the preceding live test. The complete plan/image return and physical iPhone workflow remain unverified. Nothing is marked production-ready on that basis.
+
+## Publication verification
+
+Before publication, all three app files on main matched the tested development base exactly. Live index.html, workflow.js and sw.js subsequently matched the tested local files byte-for-byte. The signed-in live app showed Generate, Drafts, Close draft, and the existing trip changed to Render with all 21 saved outfits in the selector. No live request was submitted, no new image was generated, and no existing trip/proposal was changed. Screenshot: /private/tmp/wardrobe-v45-live.png. GitHub Pages run 41219762746 was still finishing its job when these already-served assets and UI were verified. Physical iPhone tests and connector AioRpcError remain open.
