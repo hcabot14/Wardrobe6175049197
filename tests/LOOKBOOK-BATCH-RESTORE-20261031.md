@@ -23,3 +23,7 @@ Recipient test: uploaded that exact fixture ZIP once to a new chat in the real W
 ## Limits
 
 The previous live single-look image was owner-confirmed accurate. A full 21-look sequential run and automatic return are not yet verified with this restoration. Physical iPhone Files download/attachment is untested. A prompt is not an autonomous job scheduler: recipient file/image tools, subscription quotas and expiring trip access can still interrupt the sequence; progress must be preserved and limitations reported. The AioRpcError affecting connector image display is not fixed; the attachment route avoids relying on that display operation.
+
+## Published restoration
+
+The requested limited restoration was published as v46 in main commit d240d808c0df41015323f6f6be3dc6a39bed1049 (workflow.js and sw.js only; connector PR unmerged). Pages run 41220834241 completed successfully; both live files matched the tested local files byte-for-byte. The actual signed-in saved trip prepared 21 looks and 55 original photographs in a 17.0 MB packet. Render became enabled with no outfit selector. Screenshot: /private/tmp/wardrobe-v46-live-lookbook.png. The live trip/proposal was not modified and no new images were generated or uploaded. This confirms full-packet preparation, not end-to-end 21-look generation/return.
