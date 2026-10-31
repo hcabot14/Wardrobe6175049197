@@ -1,0 +1,11 @@
+# OAuth approval preparation — October 30, 2026 (Eastern)
+
+Added standalone `connector.html` and `connector/approval/` modules on the development branch. The page is not linked from or loaded by the live wardrobe. It reuses the owner's existing Wardrobe session, verifies identity with Auth, loads the exact OAuth request, checks the registered client/account/callback/scopes, lists only unexpired prepared trips, and creates a snapshot-bound read/write grant lasting at most 24 hours and no longer than the handoff. Cancellation revokes a staged trip grant; management mode withdraws approval. Session values never appear in URLs, text or logs. Ordinary Wardrobe login is not OAuth approval.
+
+Approval core tests passed against simulated Auth and records APIs. Local browser preview confirmed missing-client configuration fails closed. No real consent, OAuth token exchange or installation has completed.
+
+A real transactional database test created restrictive policies temporarily, switched to the authenticated role with ordinary and OAuth test claims, asserted ordinary owner records/photo visibility and record writes, asserted OAuth direct record/photo reads and record writes were blocked, then rolled back all policies and fixture records. The database returned PASS. No policy or fixture from that test was left behind. The reviewed policy plan is `docs/connector-rls-guard.sql`.
+
+The authenticated Supabase dashboard confirms OAuth is off. Its enable form is prepared but not saved. Dynamic client registration remains off. ChatGPT's actual Add custom MCP server dialog is available and discovered the development resource; it supplied an exact callback URL for registering a dedicated client. The form is not submitted and the plugin is not installed.
+
+Still required: approve publishing the standalone consent page and applying the restrictive policies, enable OAuth, register the exact ChatGPT client, fill its public ID, set the client's exact token audience via a tested hook, and configure the bridge's allowed client. Then verify actual consent and connector calls. Installation and the trip/face-reference access require action-time user approval. No branch was merged, no new frontend was published, no production authentication setting was saved, and no model API was called.

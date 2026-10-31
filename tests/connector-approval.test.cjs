@@ -1,0 +1,31 @@
+const assert=require('node:assert/strict');
+(async()=>{
+ const {createApproval}=await import('../connector/approval/core.mjs');
+ const now=Date.parse('2026-10-31T02:00:00Z'),base='https://wardrobe.test',redirect='https://chatgpt.com/connector/oauth/test';
+ let saved={access:'PRIVATE-APP-SESSION',refresh:'PRIVATE-REFRESH',uid:'owner',exp:now+3600000},calls=[],returnAddress=redirect+'?code=TEST-CODE&state=TEST-STATE',writes=[];
+ const storage={getItem:()=>JSON.stringify(saved),setItem:(k,v)=>{saved=JSON.parse(v)}};
+ const details={authorization_id:'authorization-test',client:{id:'client-test',name:'ChatGPT'},user:{id:'owner',email:'test@example.test'},redirect_uri:redirect,scope:'openid'};
+ let trip={wardrobe:'w-test',id:'trip-test',data:{name:'Boston test',snapshotId:'current',handoff:{returnAccess:{token:'SECRET-HANDOFF',expiresAt:'2026-11-02'}}}};
+ const network=async(input,options={})=>{calls.push({input,options});const u=new URL(input);assert.equal(u.origin,base);assert.equal(options.redirect,'error');if(u.pathname==='/auth/v1/token'){assert.equal(JSON.parse(options.body).refresh_token,'PRIVATE-REFRESH');return Response.json({access_token:'NEW-PRIVATE-SESSION',refresh_token:'NEW-REFRESH',expires_in:3600,user:{id:'owner'}})}assert.equal(options.headers.Authorization,'Bearer '+saved.access);assert.ok(!u.href.includes(saved.access));
+ if(u.pathname==='/auth/v1/user')return Response.json({id:'owner'});
+ if(u.pathname==='/auth/v1/oauth/authorizations/authorization-test')return Response.json(details);
+ if(u.pathname.endsWith('/consent'))return Response.json({redirect_url:returnAddress});
+ if(u.pathname==='/rest/v1/records'){if(options.method){writes.push(JSON.parse(options.body));return new Response(null,{status:204})}assert.equal(u.searchParams.get('user_id'),'eq.owner');return Response.json([trip,{id:'expired',data:{snapshotId:'x',handoff:{returnAccess:{expiresAt:'2000-01-01'}}}}])}throw Error('Unexpected request')};
+ const config={base,anon:'PUBLIC-KEY',clientId:'client-test',redirectUri:redirect,resource:base+'/mcp',storage,fetch:network,now:()=>now};
+ const approval=createApproval(config);
+ await assert.rejects(approval.decide('authorization-test','approve'),/Load/);
+ await assert.rejects(approval.loadAuthorization('../evil'),/Open this page/);assert.equal(calls.length,0);
+ assert.equal((await approval.loadAuthorization('authorization-test')).clientName,'ChatGPT');
+ const trips=await approval.preparedTrips();assert.equal(trips.length,1);assert.ok(!JSON.stringify(trips).includes('SECRET'));
+ await assert.rejects(approval.decide('authorization-test','approve'),/Choose and approve/);
+ await assert.rejects(approval.approveTrip({...trips[0],snapshot:'stale'}),/changed or expired/);assert.equal(writes.length,0);
+ const grant=await approval.approveTrip(trips[0]);assert.equal(Date.parse(grant.expiresAt),now+24*3600000);assert.equal(writes[0].user_id,'owner');assert.equal(writes[0].data.clientId,'client-test');assert.equal(writes[0].data.snapshot,'current');assert.deepEqual(writes[0].data.scopes,['wardrobe.read','wardrobe.write']);assert.ok(!JSON.stringify(writes).includes('SECRET'));
+ assert.equal((await approval.decide('authorization-test','approve')).redirect,returnAddress);
+ returnAddress='https://evil.test/?code=TEST';await assert.rejects(approval.decide('authorization-test','approve'),/Unexpected/);returnAddress=redirect+'?error=access_denied';
+ await approval.decide('authorization-test','deny');assert.equal(writes.at(-1).deleted,true);
+ await assert.rejects(approval.decide('authorization-test','approve'),/Choose and approve/);
+ for(const patch of [{client:{id:'other'}},{user:{id:'other'}},{redirect_uri:'https://evil.test'},{scope:'openid email'}]){const old=structuredClone(details);Object.assign(details,patch);await assert.rejects(approval.loadAuthorization('authorization-test'),/does not match/);Object.assign(details,old)}
+ saved.exp=now-1;await approval.preparedTrips();assert.equal(saved.access,'NEW-PRIVATE-SESSION');
+ await assert.rejects(createApproval({...config,clientId:''}).preparedTrips(),/not configured/);
+ console.log('Passed: owner session refresh, exact OAuth client/account/callback/scopes, prepared-trip projection, stale rejection, 24-hour grant, cancellation/revocation and safe redirect (mock backend).');
+})().catch(e=>{console.error(e);process.exitCode=1});
