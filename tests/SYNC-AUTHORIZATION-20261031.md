@@ -8,3 +8,7 @@ User explicitly requested fixing recurring page resets and treating a trip reque
 - Installed connector/OAuth authentication remains necessary. This changes trip authorization UX, not ChatGPT's own tool permission prompts. Future prepared requests receive grants; unrelated stored trips are not bulk-approved.
 
 Passed using bundled Node: background-sync.test.cjs; prepared-trip-authorization.test.cjs; workflow.test.cjs (including background proposal arriving while typing a different draft); handoff-preflight.test.cjs; connector-mcp.test.cjs. Network interactions are mocked in these tests. These changes do not establish face fidelity or physical iPhone reliability.
+
+Publication: user explicitly authorized publishing automatic trip authorization after automatic review required production-specific permission. Main commit 973c5aa5cfec585180c0cb61c7b0efc3ac8e7129, GitHub Pages run 41189047516 completed successfully. Served index.html, workflow.js and sw.js matched tested local files. Browser UI confirmed Version 42. No new trip was actually granted during verification; automatic grant behavior was verified with mocks, not a fresh live prepare-to-connector run.
+
+Live browser check: opened More / Sync, pressed Sync now, observed Synced just now with the same panel still open and Version 42 visible. Screenshot /private/tmp/wardrobe-v42-sync-preserved.png. This is not a long-duration or physical-phone test.
