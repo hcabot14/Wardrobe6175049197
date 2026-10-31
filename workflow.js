@@ -3,18 +3,21 @@
 const APP_RELEASE='38';
 // Restore the native iPhone route used in v24-v28. Launch directly on a tap.
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-// Project URLs are user-configured; ChatGPT does not expose a documented
-// universal deep link that selects an arbitrary project and pre-sends a message.
+// This opens the saved conversation; clipboard handoff still requires paste/send.
 const WARDROBE_PROJECT_URL_KEY='wardrobe.chatgpt.project.url';
+const DEFAULT_WARDROBE_PROJECT_URL='https://chatgpt.com/g/g-p-6acbb1bcf06c8191bf8785a4c90e38b8-wardrobe-app/c/6ae08427-9110-83ea-93b6-2aa2af0442a6';
 function validatedWardrobeProjectUrl(value){
  try{
   const u=new URL(String(value||'').trim());
-  if(u.protocol!=='https:'||u.hostname!=='chatgpt.com'||!/^\\/(?:g\\/g-p-|project\\/)/.test(u.pathname))return '';
-  if(u.username||u.password)return '';
+  const project=/^\/g\/g-p-[a-z0-9-]+(?:\/c\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})?\/?$/i;
+  const legacy=/^\/project\/[a-z0-9-]+\/?$/i;
+  if(u.protocol!=='https:'||u.hostname!=='chatgpt.com'||u.port||u.username||u.password||(!project.test(u.pathname)&&!legacy.test(u.pathname)))return '';
   return u.origin+u.pathname;
  }catch{return ''}
 }
-const savedWardrobeProjectUrl=()=>validatedWardrobeProjectUrl(localStorage.getItem(WARDROBE_PROJECT_URL_KEY));
+function savedWardrobeProjectUrl(){
+ try{const saved=localStorage.getItem(WARDROBE_PROJECT_URL_KEY);return saved===null?DEFAULT_WARDROBE_PROJECT_URL:validatedWardrobeProjectUrl(saved)}catch{return DEFAULT_WARDROBE_PROJECT_URL}
+}
 const chatGPTRoute=()=>savedWardrobeProjectUrl()||(isIOS()?'com.openai.chat://':'https://chatgpt.com/');
 function chatGPTLinks(){
  return isIOS()?'<a class="btn" href="com.openai.chat://">Open ChatGPT app</a><a class="link" href="https://chatgpt.com/" target="_blank" rel="noopener">Use website</a>':'<a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Open ChatGPT</a>';
@@ -162,22 +165,22 @@ function copyRequestPanel(t,out,files){
  const fresh=()=>{if(faceSignature()!==faceVersion||snapshotId()!==t.snapshotId||trips.find(x=>x.id===t.id)?.handoff?.preparedAt!==preparedAt)throw new Error('The wardrobe or request changed. Tap Continue to prepare fresh photos.');};
  const packet=[new File([text],'Start-here.txt',{type:'text/plain'}),...files];
  const shareable=!!(navigator.canShare&&navigator.canShare({files}));
- out.innerHTML=`<p class="muted sm">Your trip and photos are ready.</p><a class="btn primary" href="${chatGPTRoute()}" ${isIOS()?'':'target="_blank" rel="noopener"'} data-routechat>Route to ChatGPT</a><p class="muted sm" data-projectstatus></p><details><summary>ChatGPT project destination</summary><label for="wardrobe-project-url">Paste your Wardrobe ChatGPT project link (one-time setup)</label><input id="wardrobe-project-url" data-projecturl type="url" placeholder="https://chatgpt.com/g/g-p-…" autocomplete="off"><button type="button" data-saveproject>Save destination</button><p class="muted sm">Opens the project in a browser; paste the copied trip request there. ChatGPT cannot automatically receive or run the request from this link.</p></details><div data-copyresult class="msg" role="status"></div><details><summary>Other options</summary><div class="row"><button data-sendtrip>${shareable?'Share photos':'Download trip packet'}</button><button data-copytrip>Copy request</button><button data-downloadphotos>Download packet</button><a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Use website</a><button data-checkplan>Check for finished lookbook</button></div><button data-filefallback>Prepare for Claude or another chat</button><div data-fallbackout></div></details>`;
+ out.innerHTML=`<p class="muted sm">Your trip and photos are ready.</p><a class="btn primary" href="${chatGPTRoute()}" ${isIOS()?'':'target="_blank" rel="noopener"'} data-routechat>Route to ChatGPT</a><p class="muted sm" data-projectstatus></p><details><summary>ChatGPT project destination</summary><label for="wardrobe-project-url">Paste your Wardrobe project or conversation link</label><input id="wardrobe-project-url" data-projecturl type="url" placeholder="https://chatgpt.com/g/g-p-…" autocomplete="off"><button type="button" data-saveproject>Save destination</button><p class="muted sm">Opens your saved destination in a browser; paste the copied trip request there. ChatGPT cannot automatically receive or run the request from this link.</p></details><div data-copyresult class="msg" role="status"></div><details><summary>Other options</summary><div class="row"><button data-sendtrip>${shareable?'Share photos':'Download trip packet'}</button><button data-copytrip>Copy request</button><button data-downloadphotos>Download packet</button><a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Use website</a><button data-checkplan>Check for finished lookbook</button></div><button data-filefallback>Prepare for Claude or another chat</button><div data-fallbackout></div></details>`;
  const projectInput=out.querySelector('[data-projecturl]'),routeLink=out.querySelector('[data-routechat]'),projectStatus=out.querySelector('[data-projectstatus]');
  projectInput.value=savedWardrobeProjectUrl();
  const refreshProjectRoute=()=>{
   const project=savedWardrobeProjectUrl();
   routeLink.href=chatGPTRoute();
   routeLink.textContent=project?'Open Wardrobe ChatGPT project':'Open ChatGPT (project not configured)';
-  if(project){routeLink.target='_blank';routeLink.rel='noopener';projectStatus.textContent='Trip request will be copied. Paste it in your Wardrobe project. This opens the project website, not a specific chat.'}
+  if(project){routeLink.target='_blank';routeLink.rel='noopener';projectStatus.textContent='Trip request will be copied. Paste it in your Wardrobe project. Opens your saved ChatGPT destination in a browser.'}
   else {routeLink.removeAttribute('target');projectStatus.textContent='Set your Wardrobe project link below to avoid opening generic ChatGPT.'}
  };
  refreshProjectRoute();
  out.querySelector('[data-saveproject]').onclick=()=>{
   const raw=projectInput.value.trim();
-  if(!raw){localStorage.removeItem(WARDROBE_PROJECT_URL_KEY);refreshProjectRoute();return}
+  if(!raw){localStorage.setItem(WARDROBE_PROJECT_URL_KEY,'');refreshProjectRoute();return}
   const valid=validatedWardrobeProjectUrl(raw);
-  if(!valid){projectStatus.textContent='Enter a ChatGPT project link copied from ChatGPT (not a generic chat link).';return}
+  if(!valid){projectStatus.textContent='Enter a ChatGPT project or project conversation link copied from ChatGPT.';return}
   localStorage.setItem(WARDROBE_PROJECT_URL_KEY,valid);
   refreshProjectRoute();
  };

@@ -67,3 +67,11 @@ await run('checkReturnedPlans(true)');assert.match(run("$('#planMsg').textConten
 run("api=async()=>[{id:'old-trip',data:{status:'rendering',plan:{tripId:'old-trip',snapshotId:'old-snapshot'}}}]");
 await run('checkReturnedPlans(true)');assert.equal(run("$('#planMsg').textContent"),'No new proposal has arrived yet.');
 await assert.rejects(run('aiChat([])'),/disabled/);const z=await run("zipFiles([new File(['hello'],'one.txt'),new File(['world'],'two.txt')])");fs.writeFileSync('/tmp/wardrobe-test.zip',Buffer.from(await z.arrayBuffer()));console.log('Passed: workflow validation, journey reset, failed-download recovery, photo reference reuse, optional render sync, partial-plan labeling, no-API guard and ZIP generation.');})().catch(e=>{console.error(e);process.exitCode=1});
+// Project conversation destination and strict host/path validation.
+assert.equal(run('validatedWardrobeProjectUrl(DEFAULT_WARDROBE_PROJECT_URL)'),run('DEFAULT_WARDROBE_PROJECT_URL'));
+assert.equal(run('chatGPTRoute()'),run('DEFAULT_WARDROBE_PROJECT_URL'));
+for(const url of ['https://chatgpt.com/g/g-p-test','https://chatgpt.com/project/test']){ctx.routeTest=url;assert.equal(run('validatedWardrobeProjectUrl(routeTest)'),url)}
+for(const url of ['https://chatgpt.com/c/6ae08427-9110-83ea-93b6-2aa2af0442a6','https://chatgpt.com.evil.test/g/g-p-test','http://chatgpt.com/g/g-p-test','https://user@chatgpt.com/g/g-p-test','https://chatgpt.com:444/g/g-p-test','https://chatgpt.com/g/g-p-test/c/bad','https://chatgpt.com/g/g-p-test/extra']){ctx.routeTest=url;assert.equal(run('validatedWardrobeProjectUrl(routeTest)'),'')}
+run("localStorage.getItem=()=>''");assert.equal(run('savedWardrobeProjectUrl()'),'');assert.equal(run('chatGPTRoute()'),'https://chatgpt.com/');run("navigator.userAgent='iPhone'");assert.equal(run('chatGPTRoute()'),'com.openai.chat://');
+run("localStorage.getItem=()=>DEFAULT_WARDROBE_PROJECT_URL");assert.equal(run('chatGPTRoute()'),run('DEFAULT_WARDROBE_PROJECT_URL'));
+run("localStorage.getItem=()=>null;navigator.userAgent='test'");
