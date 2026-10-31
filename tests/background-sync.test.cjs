@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const html=fs.readFileSync(__dirname+'/../index.html','utf8');
+const source=html.slice(html.indexOf('function renderAfterBackgroundSync(){'),html.indexOf('function renderAll(){'));
+let headers=0,refreshes=0,modal=false,focused=false;
+const c=vm.createContext({tab:'more',document:{activeElement:{matches:()=>focused}},$:()=>({classList:{contains:()=>modal}}),renderHeader:()=>headers++,refreshTab:()=>refreshes++});vm.runInContext(source,c);
+for(const tab of ['more','add','trips']){c.tab=tab;vm.runInContext('renderAfterBackgroundSync()',c)}assert.equal(refreshes,0);assert.equal(headers,3);
+for(const tab of ['home','closet']){c.tab=tab;vm.runInContext('renderAfterBackgroundSync()',c)}assert.equal(refreshes,2);
+focused=true;vm.runInContext('renderAfterBackgroundSync()',c);focused=false;modal=true;vm.runInContext('renderAfterBackgroundSync()',c);assert.equal(refreshes,2);
+assert.ok(html.includes('renderAfterBackgroundSync()'));assert.ok(!html.includes('classList.contains("open"))renderAll()'));
+console.log('Passed: background sync preserves More, Add, Trips, focused input and open dialogs; idle Home/Closet refresh.');

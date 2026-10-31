@@ -62,6 +62,11 @@ run("trips[0].snapshotId=snapshotId();plan.snapshotId=snapshotId();previewPlan(p
 // Old proposals must not interrupt a fresh handoff or mask its progress.
 run("trips=[{id:'old-trip',snapshotId:'old-snapshot'},{id:'current-trip',snapshotId:snapshotId()}];editingTrip='current-trip';shownProposalKey='';$('#planMsg').textContent='';api=async path=>{if(!path.includes('kind=eq.proposal'))throw new Error('Stale proposal fetched images');return [{id:'old-trip',data:{status:'complete',updatedAt:'2099',plan:{tripId:'old-trip',snapshotId:'old-snapshot'}}},{id:'current-trip',data:{status:'rendering',updatedAt:'2026',plan:{tripId:'current-trip',snapshotId:snapshotId()}}}]}");
 await run('checkReturnedPlans()');assert.equal(run("$('#planMsg').textContent"),'');
+// A completed result arriving during a different draft must notify without replacing it.
+run("trips.push({id:'completed-trip',snapshotId:snapshotId()});api=async()=>[{id:'completed-trip',data:{status:'complete',updatedAt:'new',plan:{snapshotId:snapshotId()}}}];editJourney=()=>{throw Error('Background replaced draft')};$('#tp_plans').value='Unsaved trip typing';");
+await run('checkReturnedPlans()');assert.equal(run("$('#tp_plans').value"),'Unsaved trip typing');assert.equal(run('editingTrip'),'current-trip');
+run("api=async()=>[{id:'current-trip',data:{status:'rendering',updatedAt:'2026',plan:{tripId:'current-trip',snapshotId:snapshotId()}}}]");
+
 await run('checkReturnedPlans(true)');assert.match(run("$('#planMsg').textContent"),/images have not all returned/);
 // A different trip's pending render must not be reported for this trip.
 run("api=async()=>[{id:'old-trip',data:{status:'rendering',plan:{tripId:'old-trip',snapshotId:'old-snapshot'}}}]");
