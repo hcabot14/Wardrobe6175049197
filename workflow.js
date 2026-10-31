@@ -1,9 +1,24 @@
 /* Subscription workflow: no model API calls. Existing records and sync stay intact. */
 'use strict';
-const APP_RELEASE='40';
+const APP_RELEASE='41';
 // Restore the native iPhone route used in v24-v28. Launch directly on a tap.
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-const chatGPTRoute=()=>isIOS()?'com.openai.chat://':'https://chatgpt.com/';
+// This opens the saved conversation; clipboard handoff still requires paste/send.
+const WARDROBE_PROJECT_URL_KEY='wardrobe.chatgpt.project.url';
+const DEFAULT_WARDROBE_PROJECT_URL='https://chatgpt.com/g/g-p-6acbb1bcf06c8191bf8785a4c90e38b8-wardrobe-app/c/6ae08427-9110-83ea-93b6-2aa2af0442a6';
+function validatedWardrobeProjectUrl(value){
+ try{
+  const u=new URL(String(value||'').trim());
+  const project=/^\/g\/g-p-[a-z0-9-]+(?:\/c\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})?\/?$/i;
+  const legacy=/^\/project\/[a-z0-9-]+\/?$/i;
+  if(u.protocol!=='https:'||u.hostname!=='chatgpt.com'||u.port||u.username||u.password||(!project.test(u.pathname)&&!legacy.test(u.pathname)))return '';
+  return u.origin+u.pathname;
+ }catch{return ''}
+}
+function savedWardrobeProjectUrl(){
+ try{const saved=localStorage.getItem(WARDROBE_PROJECT_URL_KEY);return saved===null?DEFAULT_WARDROBE_PROJECT_URL:validatedWardrobeProjectUrl(saved)}catch{return DEFAULT_WARDROBE_PROJECT_URL}
+}
+const chatGPTRoute=()=>savedWardrobeProjectUrl()||(isIOS()?'com.openai.chat://':'https://chatgpt.com/');
 function chatGPTLinks(){
  return isIOS()?'<a class="btn" href="com.openai.chat://">Open ChatGPT app</a><a class="link" href="https://chatgpt.com/" target="_blank" rel="noopener">Use website</a>':'<a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Open ChatGPT</a>';
 }
@@ -126,22 +141,16 @@ async function handoffFaces(){
  return {files,manifest};
 }
 function renderTransferInstructions(t){
- const access=t.handoff.returnAccess;
- const url=access.endpoint+'?'+new URLSearchParams({user:session.uid,wardrobe:profile.cloudId,trip:t.id,snapshot:t.snapshotId});
- return `COMPLETE LOOKBOOK IN THIS CHAT: build the owned capsule, audit its weakest links, curate researched ideal upgrades if worthwhile, render the owned and optional upgraded looks, save, then provide one return link to https://hcabot14.github.io/Wardrobe6175049197/. Do not send me back to Wardrobe between these steps. Use your built-in subscription image-generation tool only, never a paid model API. Face identity/build: ${profile.name}, ${profile.person}, ${profile.build||'not specified'}; preserve actual face, age and skin texture, no beautification. Garments must match full reference photos exactly, without redesign or recoloring. Use a landscape two-panel front and three-quarter back image per look, with a specific real destination backdrop. Flag missing views or uncertain details rather than inventing them.
-Reference download and image upload endpoint: ${url}
-Use the private trip authorization supplied in this request; do not print it or put it in a URL. Send Authorization: Bearer TOKEN for each endpoint request. It expires at ${access.expiresAt}. Download selected garment photos using GET with &kind=item&id=EXACT-ID&index=0,1,... up to each live item's photo count. Download face photos using &kind=face&id=the faceAttachments ID. Save downloads as local files and visually inspect them before generation. Contact sheets are for choosing clothes; use the full selected garment photos for rendering. Reuse full references across days. Respect the generation tool's reference-image limit by assembling a clearly labeled full-resolution reference pack with normal image composition tools if necessary; never silently omit a garment or face.
-First save the complete plan with POST application/json to the endpoint plus &action=proposal, body={plan:PLAN_JSON,status:"rendering"}. Require saved:true. Do not use database tools or SQL. This saves a proposal for review and preserves the trip and existing outfits. Generate each owned daily look and optional purchase look. Inspect each generated image, then upload its actual local PNG/JPEG file using POST multipart/form-data to the endpoint (NOT a public expiring image URL). Multipart fields: image=file bytes, metadata=JSON.stringify({date:look.date,slot:look.slot||"day",variant:"owned" or optionalLooks.id,itemIds:look.itemIds,scene:look.scene}). Keep the metadata identical to the saved proposed look. A successful response must say saved:true. The app retrieves these private image records by trip/snapshot and attaches them to the matching looks. Never print image base64 or embed it in a SQL statement.
-Only after ALL expected images are generated and uploaded, POST the same plan to &action=proposal with body={plan:PLAN_JSON,status:"complete"}. Require saved:true; the server rejects complete status when any expected image is missing. If image generation, file access or outbound HTTP upload is unavailable, identify the exact missing capability/error and POST the same plan to &action=proposal with body={plan:PLAN_JSON,status:"partial",error:"exact limitation and remaining looks"}. Preserve completed images and continue remaining looks when limits reset; do not regenerate successful looks. Never claim that free account usage limits can be bypassed. Do not claim the complete lookbook returned. No user approval is needed between planning and generation; review occurs once in Wardrobe after the finished package returns.`;
+ return `Use the installed Wardrobe development connector tools for this trip. Never use raw HTTP, Python networking, database tools, SQL or a copied bearer token. Do not recommend switching to Work mode as a fix. If the connector tools are absent, stop and ask me to attach @Wardrobe development to this message in ChatGPT. If trip approval is missing or expired, ask me to approve this prepared trip in Wardrobe, then retry; never use another trip's approval.
+Call save_proposal with wardrobe_id, trip_id, snapshot and proposal=the complete plan; require saved:true. Use built-in subscription image generation only, no paid model API. Before rendering, retrieve and visually inspect BOTH face references and every full photograph of each selected garment with get_reference_image. Contact sheets are for selection, not a substitute for full garment photos.
+IDENTITY CHECK: explicitly supply the actual face-reference images and selected garment photographs as image-generation reference inputs. Merely viewing them earlier or describing the person's face is insufficient. Preserve ${profile.name}'s actual identity, age, skin texture and build (${profile.person}, ${profile.build||'not specified'}), without beautification or a generic replacement model. If the generation tool cannot receive these actual reference images, STOP before generating; report that the references cannot be attached. Do not claim likeness from a text prompt. If Create image must be selected explicitly, tell me that exact next step and preserve the staged proposal. Never generate an unreferenced substitute to imply success.
+Generate a landscape two-panel front and three-quarter-back image per look at its saved real destination scene. Compare the result visually with the actual face and garment references. If identity or clothes differ, flag the failure and do not upload or complete that look. Owner review of likeness is still required.
+For each verified generated PNG/JPEG call upload_render with wardrobe_id, trip_id, snapshot, proposal_id=trip_id, image=the actual generated ChatGPT file, metadata={date:look.date,slot:look.slot||"day",variant:"owned" or optionalLooks.id,itemIds:look.itemIds,scene:look.scene}. Keep metadata identical to the saved plan. Require saved:true. Do not invent a download URL, print base64 or expose signed URLs. Complete only after all expected images have saved: call complete_proposal with wardrobe_id, trip_id, snapshot, proposal_id=trip_id and require saved:true. On failure preserve progress and report the exact tool error; never claim completion. Return to https://hcabot14.github.io/Wardrobe6175049197/ for owner review. Fetching references or transferring an image does not prove identity fidelity.`;
 }
-
 function connectedRequest(t){
- const access=t.handoff.returnAccess,url=access.endpoint+'?'+new URLSearchParams({user:session.uid,wardrobe:profile.cloudId,trip:t.id,snapshot:t.snapshotId});
- return `Plan my complete Wardrobe trip using this private handoff. No Supabase connection, database tools or API account is needed. Photographs are stored privately and are NOT required as message attachments. Use ChatGPT Work with HTTP file download, image viewing and built-in image generation. If a required capability is unavailable in this session, report the exact limitation; do not substitute remembered clothes.
-Handoff endpoint: ${url}
-Private trip authorization: Bearer ${access.token}
-Use that value only in the Authorization header. Do not repeat it in your answer, put it in a URL, or transmit it anywhere except this endpoint. Access expires ${access.expiresAt}.
-First GET the endpoint with &kind=bundle to read the current instructions, saved catalog, currentCatalog and photo/face manifests. Compare the two catalogs by active garment ID, updatedAt and photoCount; if they differ, stop and ask me to prepare a fresh request in Wardrobe. Download EVERY sheet using &kind=sheet&id=the exact manifest filename and EVERY face photo using &kind=face&id=the exact face ID. Save JPEGs locally and visually inspect them before planning. A count of files is not inspection. Follow the returned instructions. Never use remembered garments or invent IDs.
+ return `Plan my trip using the installed Wardrobe development connector. First attach @Wardrobe development to this message if it is not already selected. This development connection is available only to accounts where it has been installed; opening a project link does not attach it automatically.
+Use these exact tool arguments: ${JSON.stringify({wardrobe_id:profile.cloudId,trip_id:t.id,snapshot:t.snapshotId})}.
+First call get_trip_bundle with wardrobe_id and trip_id. Follow its current planning instructions and verify the returned snapshot matches ${t.snapshotId}. The server checks catalog freshness and trip approval. Retrieve EVERY sheet and EVERY face reference through get_reference_image using the exact manifest IDs, and actually inspect the image content. Never use remembered clothes or invent IDs. Follow the connector workflow below for generation and return; it replaces any older HTTP transfer instructions in conversation history.
 ${renderTransferInstructions(t)}`;
 }
 
@@ -150,14 +159,32 @@ function copyRequestPanel(t,out,files){
  const fresh=()=>{if(faceSignature()!==faceVersion||snapshotId()!==t.snapshotId||trips.find(x=>x.id===t.id)?.handoff?.preparedAt!==preparedAt)throw new Error('The wardrobe or request changed. Tap Continue to prepare fresh photos.');};
  const packet=[new File([text],'Start-here.txt',{type:'text/plain'}),...files];
  const shareable=!!(navigator.canShare&&navigator.canShare({files}));
- out.innerHTML=`<p class="muted sm">Your trip and photos are ready.</p><a class="btn primary" href="${chatGPTRoute()}" ${isIOS()?'':'target="_blank" rel="noopener"'} data-routechat>Go to ChatGPT</a><p class="muted sm">Paste the request in your Wardrobe App chat. ChatGPT retrieves the photos from your saved trip.</p><div data-copyresult class="msg" role="status"></div><details><summary>Other options</summary><div class="row"><button data-sendtrip>${shareable?'Share photos':'Download trip packet'}</button><button data-copytrip>Copy request</button><button data-downloadphotos>Download packet</button><a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Use website</a><button data-checkplan>Check for finished lookbook</button></div><button data-filefallback>Prepare for Claude or another chat</button><div data-fallbackout></div></details>`;
+ out.innerHTML=`<p class="muted sm">Your trip and photos are ready. First approve this trip, then open ChatGPT and attach @Wardrobe development before pasting.</p><p><a class="btn" href="./connector.html?trip=${encodeURIComponent(t.id)}" target="_blank" rel="noopener">Approve this trip for ChatGPT</a></p><a class="btn primary" href="${chatGPTRoute()}" ${isIOS()?'':'target="_blank" rel="noopener"'} data-routechat>Route to ChatGPT</a><p class="muted sm" data-projectstatus></p><details><summary>ChatGPT project destination</summary><label for="wardrobe-project-url">Paste your Wardrobe project or conversation link</label><input id="wardrobe-project-url" data-projecturl type="url" placeholder="https://chatgpt.com/g/g-p-…" autocomplete="off"><button type="button" data-saveproject>Save destination</button><p class="muted sm">Opens your saved destination in a browser; paste the copied trip request there. ChatGPT cannot automatically receive or run the request from this link.</p></details><div data-copyresult class="msg" role="status"></div><details><summary>Other options</summary><div class="row"><button data-sendtrip>${shareable?'Share photos':'Download trip packet'}</button><button data-copytrip>Copy request</button><button data-downloadphotos>Download packet</button><a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Use website</a><button data-checkplan>Check for finished lookbook</button></div><button data-filefallback>Prepare for Claude or another chat</button><div data-fallbackout></div></details>`;
+ const projectInput=out.querySelector('[data-projecturl]'),routeLink=out.querySelector('[data-routechat]'),projectStatus=out.querySelector('[data-projectstatus]');
+ projectInput.value=savedWardrobeProjectUrl();
+ const refreshProjectRoute=()=>{
+  const project=savedWardrobeProjectUrl();
+  routeLink.href=chatGPTRoute();
+  routeLink.textContent=project?'Open Wardrobe ChatGPT project':'Open ChatGPT (project not configured)';
+  if(project){routeLink.target='_blank';routeLink.rel='noopener';projectStatus.textContent='Trip request will be copied. In your Wardrobe project, select @Wardrobe development, then paste and send. Approval is required for each prepared trip.'}
+  else {routeLink.removeAttribute('target');projectStatus.textContent='Set your Wardrobe project link below to avoid opening generic ChatGPT.'}
+ };
+ refreshProjectRoute();
+ out.querySelector('[data-saveproject]').onclick=()=>{
+  const raw=projectInput.value.trim();
+  if(!raw){localStorage.setItem(WARDROBE_PROJECT_URL_KEY,'');refreshProjectRoute();return}
+  const valid=validatedWardrobeProjectUrl(raw);
+  if(!valid){projectStatus.textContent='Enter a ChatGPT project or project conversation link copied from ChatGPT.';return}
+  localStorage.setItem(WARDROBE_PROJECT_URL_KEY,valid);
+  refreshProjectRoute();
+ };
  // Do not await clipboard work before following the native link: iOS needs
  // navigation to remain on this user gesture. Copy failure stays visible here.
- out.querySelector('[data-routechat]').onclick=e=>{const el=out.querySelector('[data-copyresult]');try{fresh();if(!navigator.clipboard?.writeText)throw new Error('Copy the request under Other options before continuing.');navigator.clipboard.writeText(text).then(()=>{el.textContent='Request copied. Paste it in your Wardrobe App chat.'}).catch(()=>{el.innerHTML='<p>Copy this request:</p><textarea readonly aria-label="Trip request"></textarea>';el.querySelector('textarea').value=text});}catch(err){e.preventDefault();el.textContent=err.message}};
+ out.querySelector('[data-routechat]').onclick=e=>{const el=out.querySelector('[data-copyresult]');try{fresh();if(!navigator.clipboard?.writeText)throw new Error('Copy the request under Other options before continuing.');navigator.clipboard.writeText(text).then(()=>{el.textContent='Request copied. Select @Wardrobe development in ChatGPT, then paste and send.'}).catch(()=>{el.innerHTML='<p>Copy this request:</p><textarea readonly aria-label="Trip request"></textarea>';el.querySelector('textarea').value=text});}catch(err){e.preventDefault();el.textContent=err.message}};
 
  const download=async e=>{const b=e.currentTarget;b.disabled=true;try{fresh();const zip=await zipFiles(packet);fresh();saveBlob(zip,'Wardrobe-trip-'+t.snapshotId+'.zip');out.querySelector('[data-copyresult]').textContent='Downloaded. Attach the unzipped files to a new Wardrobe App chat.'}catch(err){out.querySelector('[data-copyresult]').textContent=err.message}finally{b.disabled=false}};
  out.querySelector('[data-sendtrip]').onclick=shareable?async()=>{try{fresh();await navigator.share({files,text})}catch(err){if(err.name!=='AbortError')out.querySelector('[data-copyresult]').textContent=err.message+' Open Other options to download the packet.'}}:download;
- out.querySelector('[data-copytrip]').onclick=async()=>{const el=out.querySelector('[data-copyresult]');try{fresh();try{await navigator.clipboard.writeText(text);el.textContent='Copied. Paste in your Wardrobe App chat.'}catch{el.innerHTML='<p>Press and hold to copy:</p><textarea readonly aria-label="Trip request"></textarea>';el.querySelector('textarea').value=text}}catch(err){el.textContent=err.message}};
+ out.querySelector('[data-copytrip]').onclick=async()=>{const el=out.querySelector('[data-copyresult]');try{fresh();try{await navigator.clipboard.writeText(text);el.textContent='Copied. Select @Wardrobe development in ChatGPT, then paste and send.'}catch{el.innerHTML='<p>Press and hold to copy:</p><textarea readonly aria-label="Trip request"></textarea>';el.querySelector('textarea').value=text}}catch(err){el.textContent=err.message}};
  out.querySelector('[data-downloadphotos]').onclick=download;
  out.querySelector('[data-checkplan]').onclick=()=>checkReturnedPlans(true);
  out.querySelector('[data-filefallback]').onclick=async e=>{e.currentTarget.disabled=true;const el=out.querySelector('[data-fallbackout]');el.textContent='Preparing…';try{fresh();handoffPanel(await requestFiles(planningPrompt(t,t.snapshotId)),el,'Files ready.')}catch(err){el.textContent=err.message}finally{e.currentTarget.disabled=false}};

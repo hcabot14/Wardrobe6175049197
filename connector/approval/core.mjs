@@ -16,9 +16,9 @@ export function createApproval({base,anon,clientId,redirectUri,resource,storage,
   details=d;return {clientName:d.client.name||'ChatGPT',account:d.user.email,scope:d.scope};
  }
  async function preparedTrips(){configured();await identity();const q=new URLSearchParams({select:'wardrobe,id,data',user_id:'eq.'+session.uid,kind:'eq.trip',deleted:'eq.false',limit:'200'});const rows=await api('/rest/v1/records?'+q);return rows.filter(x=>x.data?.snapshotId&&Number.isFinite(Date.parse(x.data?.handoff?.returnAccess?.expiresAt))&&Date.parse(x.data.handoff.returnAccess.expiresAt)>now()).map(x=>({id:x.id,wardrobe:x.wardrobe,name:x.data.name||x.id,snapshot:x.data.snapshotId,expiresAt:x.data.handoff.returnAccess.expiresAt}));}
- async function approveTrip(selection){configured();if(!details)throw Error('Load a valid connection request first.');
+ async function approveTrip(selection){configured();await identity();
   const fresh=(await preparedTrips()).find(x=>x.id===selection.id&&x.wardrobe===selection.wardrobe&&x.snapshot===selection.snapshot);if(!fresh)throw Error('This trip changed or expired. Prepare it again in Wardrobe.');
-  if(details.user.id!==session.uid)throw Error('Wardrobe account changed. Reopen the connection request.');
+  if(details&&details.user.id!==session.uid)throw Error('Wardrobe account changed. Reopen the connection request.');
   const expiresAt=new Date(Math.min(Date.parse(fresh.expiresAt),now()+24*3600000)).toISOString();
   const grant={clientId,tripId:fresh.id,snapshot:fresh.snapshot,scopes:['wardrobe.read','wardrobe.write'],expiresAt};
   const row={user_id:session.uid,wardrobe:fresh.wardrobe,kind:'connector_grant',id:fresh.id,data:grant,deleted:false};
