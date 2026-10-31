@@ -1900,7 +1900,7 @@ async function syncNow(){
       await new Promise(r=>{const q=indexedDB.deleteDatabase(n);q.onsuccess=q.onerror=q.onblocked=()=>r()}); forgetDB(n);
     }
     if(!db){const rest=await knownDBs(); syncing=false; if(rest.length){await switchTo(rest[0]);toast("That wardrobe was deleted on another device")} else showWelcome({first:true}); return}
-    if(res.changed.has(dbName)){await loadAll();profile=await dGet(db,"meta","profile");if(!$("#modal").classList.contains("open"))renderAll();else renderHeader()}
+    if(res.changed.has(dbName)){await loadAll();profile=await dGet(db,"meta","profile");renderAfterBackgroundSync()}
     if(res.added.length) toast(`Added from your other device: ${res.added.join(", ")}`);
     LS.set("wardrobe-lastsync",now()); syncing=false; setSync("Synced just now");
     if(res.added.length) refreshMore();
@@ -2020,6 +2020,12 @@ function showTab(t){
 function refreshTab(){
   if(!profile) return;
   if(tab==="home") renderHome(); if(tab==="closet") render(); if(tab==="add") renderAddTab(); if(tab==="trips"){renderTrips();renderOutfits()} if(tab==="more") renderMore();
+}
+// Background sync must never rebuild forms, panels, or an in-progress trip.
+function renderAfterBackgroundSync(){
+  renderHeader();
+  const editing=document.activeElement?.matches?.('input,textarea,select,[contenteditable="true"]');
+  if(!$("#modal").classList.contains("open")&&!editing&&(tab==="home"||tab==="closet"))refreshTab();
 }
 function renderAll(){renderHeader();refreshTab()}
 document.querySelectorAll(".tabbar button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));

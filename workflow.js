@@ -1,6 +1,6 @@
 /* Subscription workflow: no model API calls. Existing records and sync stay intact. */
 'use strict';
-const APP_RELEASE='41';
+const APP_RELEASE='42';
 // Restore the native iPhone route used in v24-v28. Launch directly on a tap.
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 // This opens the saved conversation; clipboard handoff still requires paste/send.
@@ -141,7 +141,7 @@ async function handoffFaces(){
  return {files,manifest};
 }
 function renderTransferInstructions(t){
- return `Use the installed Wardrobe development connector tools for this trip. Never use raw HTTP, Python networking, database tools, SQL or a copied bearer token. Do not recommend switching to Work mode as a fix. If the connector tools are absent, stop and ask me to attach @Wardrobe development to this message in ChatGPT. If trip approval is missing or expired, ask me to approve this prepared trip in Wardrobe, then retry; never use another trip's approval.
+ return `Use the installed Wardrobe development connector tools for this trip. Never use raw HTTP, Python networking, database tools, SQL or a copied bearer token. Do not recommend switching to Work mode as a fix. If the connector tools are absent, stop and ask me to attach @Wardrobe development to this message in ChatGPT. If trip approval is missing or expired, ask me to tap Continue in Wardrobe to prepare and authorize a fresh request, then retry; never use another trip's approval.
 Call save_proposal with wardrobe_id, trip_id, snapshot and proposal=the complete plan; require saved:true. Use built-in subscription image generation only, no paid model API. Before rendering, retrieve and visually inspect BOTH face references and every full photograph of each selected garment with get_reference_image. Contact sheets are for selection, not a substitute for full garment photos.
 IDENTITY CHECK: explicitly supply the actual face-reference images and selected garment photographs as image-generation reference inputs. Merely viewing them earlier or describing the person's face is insufficient. Preserve ${profile.name}'s actual identity, age, skin texture and build (${profile.person}, ${profile.build||'not specified'}), without beautification or a generic replacement model. If the generation tool cannot receive these actual reference images, STOP before generating; report that the references cannot be attached. Do not claim likeness from a text prompt. If Create image must be selected explicitly, tell me that exact next step and preserve the staged proposal. Never generate an unreferenced substitute to imply success.
 Generate a landscape two-panel front and three-quarter-back image per look at its saved real destination scene. Compare the result visually with the actual face and garment references. If identity or clothes differ, flag the failure and do not upload or complete that look. Owner review of likeness is still required.
@@ -159,14 +159,14 @@ function copyRequestPanel(t,out,files){
  const fresh=()=>{if(faceSignature()!==faceVersion||snapshotId()!==t.snapshotId||trips.find(x=>x.id===t.id)?.handoff?.preparedAt!==preparedAt)throw new Error('The wardrobe or request changed. Tap Continue to prepare fresh photos.');};
  const packet=[new File([text],'Start-here.txt',{type:'text/plain'}),...files];
  const shareable=!!(navigator.canShare&&navigator.canShare({files}));
- out.innerHTML=`<p class="muted sm">Your trip and photos are ready. First approve this trip, then open ChatGPT and attach @Wardrobe development before pasting.</p><p><a class="btn" href="./connector.html?trip=${encodeURIComponent(t.id)}" target="_blank" rel="noopener">Approve this trip for ChatGPT</a></p><a class="btn primary" href="${chatGPTRoute()}" ${isIOS()?'':'target="_blank" rel="noopener"'} data-routechat>Route to ChatGPT</a><p class="muted sm" data-projectstatus></p><details><summary>ChatGPT project destination</summary><label for="wardrobe-project-url">Paste your Wardrobe project or conversation link</label><input id="wardrobe-project-url" data-projecturl type="url" placeholder="https://chatgpt.com/g/g-p-…" autocomplete="off"><button type="button" data-saveproject>Save destination</button><p class="muted sm">Opens your saved destination in a browser; paste the copied trip request there. ChatGPT cannot automatically receive or run the request from this link.</p></details><div data-copyresult class="msg" role="status"></div><details><summary>Other options</summary><div class="row"><button data-sendtrip>${shareable?'Share photos':'Download trip packet'}</button><button data-copytrip>Copy request</button><button data-downloadphotos>Download packet</button><a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Use website</a><button data-checkplan>Check for finished lookbook</button></div><button data-filefallback>Prepare for Claude or another chat</button><div data-fallbackout></div></details>`;
+ out.innerHTML=`<p class="muted sm">Your trip and photos are ready. Preparing this request authorizes the installed connector to use this trip’s wardrobe and face references and return outfits and images for up to 24 hours. Open ChatGPT and attach @Wardrobe development before pasting.</p><a class="btn primary" href="${chatGPTRoute()}" ${isIOS()?'':'target="_blank" rel="noopener"'} data-routechat>Route to ChatGPT</a><p class="muted sm" data-projectstatus></p><details><summary>ChatGPT project destination</summary><label for="wardrobe-project-url">Paste your Wardrobe project or conversation link</label><input id="wardrobe-project-url" data-projecturl type="url" placeholder="https://chatgpt.com/g/g-p-…" autocomplete="off"><button type="button" data-saveproject>Save destination</button><p class="muted sm">Opens your saved destination in a browser; paste the copied trip request there. ChatGPT cannot automatically receive or run the request from this link.</p></details><div data-copyresult class="msg" role="status"></div><details><summary>Other options</summary><div class="row"><button data-sendtrip>${shareable?'Share photos':'Download trip packet'}</button><button data-copytrip>Copy request</button><button data-downloadphotos>Download packet</button><a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Use website</a><button data-checkplan>Check for finished lookbook</button><a class="btn" href="./connector.html?trip=${encodeURIComponent(t.id)}" target="_blank" rel="noopener">Manage trip access</a></div><button data-filefallback>Prepare for Claude or another chat</button><div data-fallbackout></div></details>`;
  const projectInput=out.querySelector('[data-projecturl]'),routeLink=out.querySelector('[data-routechat]'),projectStatus=out.querySelector('[data-projectstatus]');
  projectInput.value=savedWardrobeProjectUrl();
  const refreshProjectRoute=()=>{
   const project=savedWardrobeProjectUrl();
   routeLink.href=chatGPTRoute();
   routeLink.textContent=project?'Open Wardrobe ChatGPT project':'Open ChatGPT (project not configured)';
-  if(project){routeLink.target='_blank';routeLink.rel='noopener';projectStatus.textContent='Trip request will be copied. In your Wardrobe project, select @Wardrobe development, then paste and send. Approval is required for each prepared trip.'}
+  if(project){routeLink.target='_blank';routeLink.rel='noopener';projectStatus.textContent='Trip request will be copied. In your Wardrobe project, select @Wardrobe development, then paste and send. This prepared trip is authorized for up to 24 hours.'}
   else {routeLink.removeAttribute('target');projectStatus.textContent='Set your Wardrobe project link below to avoid opening generic ChatGPT.'}
  };
  refreshProjectRoute();
@@ -200,6 +200,18 @@ async function verifyHandoffReady(t,wardrobe){
  if(!response.ok)throw new Error('Private handoff check failed (HTTP '+response.status+'). Tap Continue to prepare a fresh request.');
  const bundle=await response.json();if(bundle.catalogMatches!==true)throw new Error('The saved photographs and live wardrobe differ. Sync the current wardrobe, then tap Continue again.');
 }
+async function authorizePreparedTrip(t,wardrobe){
+ const owner=session?.uid,snapshot=t.snapshotId,preparedAt=t.handoff?.preparedAt;
+ if(!owner||profile.cloudId!==wardrobe||!preparedAt||snapshotId()!==snapshot)throw new Error('The trip changed. Tap Continue again.');
+ const cfgResponse=await fetch('./connector/approval/config.json',{cache:'no-store'});
+ if(!cfgResponse.ok)throw new Error('Connector settings could not be loaded. Try Continue again.');
+ const cfg=await cfgResponse.json();
+ if(cfg.supabaseUrl!==cloudBase()||!cfg.clientId)throw new Error('The connector does not match this Wardrobe sign-in service.');
+ if(session?.uid!==owner||profile.cloudId!==wardrobe||snapshotId()!==snapshot||trips.find(x=>x.id===t.id)?.handoff?.preparedAt!==preparedAt)throw new Error('The trip changed. Tap Continue again.');
+ const expiresAt=new Date(Math.min(Date.parse(t.handoff.returnAccess.expiresAt),Date.now()+24*3600000)).toISOString();
+ if(Date.parse(expiresAt)<=Date.now())throw new Error('Prepare a fresh trip request.');
+ await api('/rest/v1/records?on_conflict=user_id,wardrobe,kind,id',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:owner,wardrobe,kind:'connector_grant',id:t.id,deleted:false,data:{clientId:cfg.clientId,tripId:t.id,snapshot,scopes:['wardrobe.read','wardrobe.write'],expiresAt}})});
+}
 async function syncHandoff(t,expectedWardrobe){
  await waitForSync();await syncNow();await waitForSync();if(syncState.err)throw new Error('Request saved on this device. '+(syncState.text||'Sync did not finish.'));if(profile.cloudId!==expectedWardrobe)throw new Error('The selected wardrobe changed. Please try again.');
  const rows=await api(`/rest/v1/records?select=data->handoff->preparedAt&wardrobe=eq.${encodeURIComponent(expectedWardrobe)}&kind=eq.trip&id=eq.${encodeURIComponent(t.id)}&deleted=eq.false`);
@@ -222,7 +234,7 @@ planTrip=async function(){const m=$('#planMsg'),b=$('#planBtn');b.disabled=true;
  const storedSheets=await Promise.all(pack.manifest.map(async(sheet,i)=>({...sheet,image:await blobData(pack.files[i])})));
  if(faceSignature()!==faceVersion||id!==snapshotId()||wardrobe!==profile.cloudId)throw new Error('The wardrobe changed while preparing. Tap Continue again.');
  t.snapshotId=id;t.handoff={version:5,preparedAt:now(),catalog:catalogSnapshot(),photoAttachments:storedSheets,faceAttachments:facePack.manifest,returnAccess:{endpoint:cloudBase()+'/functions/v1/wardrobe-handoff',token:Array.from(crypto.getRandomValues(new Uint8Array(32))).map(n=>n.toString(16).padStart(2,'0')).join(''),expiresAt:new Date(Date.now()+48*3600000).toISOString()},instructions:planningPrompt(t,id).replaceAll('attached','saved').replaceAll('Current-wardrobe.json','data.handoff.catalog')};t.updatedAt=now();
- await putTrip(t);await syncHandoff(t,wardrobe);requestReady={tripId:t.id,snapshotId:id};copyRequestPanel(t,$('#requestFiles'),pack.files.concat(facePack.files));m.textContent='';$('#replyDetails').open=false;
+ await putTrip(t);await syncHandoff(t,wardrobe);await authorizePreparedTrip(t,wardrobe);requestReady={tripId:t.id,snapshotId:id};copyRequestPanel(t,$('#requestFiles'),pack.files.concat(facePack.files));m.textContent='';$('#replyDetails').open=false;
  }catch(e){m.textContent=e.message}finally{handoffWorking=false;b.disabled=false}};
 $('#planBtn').onclick=()=>planTrip();
 function cleanTripCover(c){if(!c||!String(c.destination||'').trim())return null;const imageUrl=safeLink(c.imageUrl);if(!imageUrl.startsWith('https://'))return null;return {destination:String(c.destination).slice(0,120),imageUrl,sourceUrl:safeLink(c.sourceUrl),credit:String(c.credit||'').slice(0,240)}}
@@ -375,7 +387,7 @@ tripListElement.addEventListener('click',e=>{if(Date.now()<suppressTripClickUnti
 
 // Cloud proposals are separate from trips, so a response cannot overwrite a
 // user's draft or accepted outfits. The existing validator gates acceptance.
-let checkingReturnedPlans=false,shownProposalKey='';
+let checkingReturnedPlans=false,shownProposalKey='',notifiedProposalKey='';
 function renderMatchesPlan(plan,z){const variant=z.variant||'owned',look=variant==='owned'?(plan.outfits||[]).find(x=>x.date===z.date&&(x.slot||'day')===z.slot):(plan.optionalLooks||[]).find(x=>x.id===variant);return !!look&&JSON.stringify(look.itemIds)===JSON.stringify(z.itemIds)&&look.scene===z.scene&&JSON.stringify(look.productIds||[])===JSON.stringify(z.productIds||[]);}
 function missingRenders(plan){return [...(plan.outfits||[]).map(x=>({look:x,variant:'owned'})),...(plan.optionalLooks||[]).map(x=>({look:x,variant:x.id}))].filter(({look,variant})=>!lookRenders(plan,look,variant).length);}
 async function checkReturnedPlans(manual=false){
@@ -388,7 +400,14 @@ async function checkReturnedPlans(manual=false){
   for(const row of candidates){
    const key=row.id+':'+row.data.updatedAt;
    if((await dGet(db,'meta','accepted-proposal:'+row.id))?.key===key)continue;
-   if(!manual&&shownProposalKey===key)continue;
+   if(!manual){
+    if(shownProposalKey!==key&&notifiedProposalKey!==key&&row.data.status==='complete'){
+     notifiedProposalKey=key;toast('A Wardrobe lookbook is ready for review.');
+     const notice=$('#toast'),review=document.createElement('button');review.className='link';review.textContent='Review lookbook';
+     review.onclick=()=>{showTab('trips');editJourney(row.id);checkReturnedPlans(true)};notice.appendChild(review);
+    }
+    continue;
+   }
    const images=await api('/rest/v1/records?select=data&kind=eq.render&deleted=eq.false&wardrobe=eq.'+encodeURIComponent(profile.cloudId))||[];
    const plan={...row.data.plan,renders:images.map(x=>x.data).filter(z=>z.tripId===row.id&&z.snapshotId===row.data.plan.snapshotId&&renderMatchesPlan(row.data.plan,z))};
    try{validatePlan(plan)}catch(e){if(manual)throw e;continue}plan.renders=await Promise.all(plan.renders.map(async z=>{const image=z.image.startsWith('sb:')?await downloadPhoto(z.image.slice(3)):z.image;if(!image)throw new Error('A returned image could not be loaded. Try again.');return {...z,image};}));
