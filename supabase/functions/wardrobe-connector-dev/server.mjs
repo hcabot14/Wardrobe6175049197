@@ -1,3 +1,4 @@
+import {referenceWidgetUri,referenceWidgetHtml} from './reference-widget.mjs';
 /* Development MCP bridge. Production handoff stays untouched. No model API. */
 const READ='wardrobe.read',WRITE='wardrobe.write',MAX_IMAGE=12*1024*1024;
 const str={type:'string',minLength:1};
@@ -11,6 +12,7 @@ const specs=[
  ['complete_proposal','Verify all images for the saved proposal and mark it ready for user review.',{snapshot:str,proposal_id:str},['snapshot','proposal_id']]
 ];
 export const toolDescriptors=specs.map(([name,description,properties,required],i)=>({name,title:name.replaceAll('_',' '),description,inputSchema:{type:'object',properties:{...scope,...properties},required:['wardrobe_id','trip_id',...required],additionalProperties:false},annotations:{readOnlyHint:i<2,destructiveHint:false,idempotentHint:i!==3,openWorldHint:i===3},securitySchemes:[{type:'oauth2',scopes:['openid']}],_meta:{securitySchemes:[{type:'oauth2',scopes:['openid']}],...(i===3?{'openai/fileParams':['image']}:{})}}));
+toolDescriptors.push({outputSchema:{type:'object',properties:{status:{type:'string'},key:{type:'string'},outfit:{type:'object'},fileNames:{type:'array',items:{type:'string'}},instruction:{type:'string'}},required:['status','key','outfit','fileNames','instruction'],additionalProperties:false},name:'prepare_outfit_references',title:'Prepare actual outfit reference files',description:'Register actual approved face and full garment photos as ChatGPT files for one exact saved outfit. Run before image generation; inspect component registration result. Never substitutes text descriptions.',inputSchema:{type:'object',properties:{...scope,snapshot:str,date:str,slot:{enum:['day','evening']},variant:str},required:['wardrobe_id','trip_id','snapshot','date','slot','variant'],additionalProperties:false},annotations:{readOnlyHint:true,destructiveHint:false,openWorldHint:false,idempotentHint:true},securitySchemes:[{type:'oauth2',scopes:['openid']}],_meta:{securitySchemes:[{type:'oauth2',scopes:['openid']}],ui:{resourceUri:referenceWidgetUri},'openai/outputTemplate':referenceWidgetUri,'openai/toolInvocation/invoking':'Preparing actual outfit references','openai/toolInvocation/invoked':'Reference package ready'}});
 class Failure extends Error{constructor(status,message){super(message);this.status=status}}
 const fail=(status,message)=>{throw new Failure(status,message)};
 function httpsUrl(value){const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password||u.port)throw Error('Expected HTTPS URL');return u}
@@ -61,6 +63,32 @@ export function createServer(config,{fetch:request=fetch,now=Date.now}={}){
    // Explicit projection. No access token, private endpoint, storage URL or session is returned.
    return text({tripId:args.trip_id,snapshotId:b.trip.snapshotId,instructions:data.instructions,catalog:data.catalog,currentCatalog:data.currentCatalog,photoAttachments:(data.photoAttachments||[]).map(x=>({filename:x.filename,itemIds:x.itemIds})),faceAttachments:(data.faceAttachments||[]).map(x=>({id:x.id})),expiresAt:b.expiresAt});
   }
+  if(name==='prepare_outfit_references'){
+   if(args.snapshot!==b.trip.snapshotId)fail(409,'Stale snapshot');
+   const staged=await getRow(principal.userId,args.wardrobe_id,'proposal',args.trip_id),plan=staged?.plan;
+   if(plan?.snapshotId!==args.snapshot||plan?.tripId!==args.trip_id)fail(409,'No matching saved proposal');
+   const looks=args.variant==='owned'?plan.outfits:plan.optionalLooks;
+   const look=looks?.find(x=>x.date===args.date&&(x.slot||'day')===args.slot&&(args.variant==='owned'||x.id===args.variant));
+   if(!look||!Array.isArray(look.itemIds)||new Set(look.itemIds).size!==look.itemIds.length||!look.itemIds.length)fail(400,'No matching owned outfit');
+   // Purchased-product references need a separately verified source, never an arbitrary model URL.
+   if(look.productIds?.length)fail(400,'Purchased-product reference transfer is not implemented');
+   const data=await(await upstream(b,{kind:'bundle'})).json();if(!data.catalogMatches)fail(409,'Catalog changed; prepare a fresh handoff');
+   const requests=(data.faceAttachments||[]).slice(0,2).map((f,i)=>({kind:'face',id:f.id,index:0,name:'Face-reference-'+(i+1)}));
+   if(!requests.length)fail(400,'No approved face references');
+   for(const id of look.itemIds){
+    const item=data.catalog?.items?.find(x=>x.id===id);
+    if(!/^[A-Z]+-[0-9]+$/.test(id)||!Number.isInteger(item?.photoCount)||item.photoCount<1||item.photoCount>41)fail(409,'Selected garment photographs are missing');
+    for(let index=0;index<item.photoCount;index++)requests.push({kind:'item',id,index,name:id+'-'+index});
+   }
+   if(requests.length>32)fail(413,'This outfit exceeds the 32-file reference limit');
+   let total=0;const references=[];
+   for(const ref of requests){const bytes=await limitedBytes(await upstream(b,{kind:ref.kind,id:ref.id,index:String(ref.index)}),MAX_IMAGE);total+=bytes.length;if(total>36*1024*1024)fail(413,'Reference package exceeds 36 MB');const mimeType=imageType(bytes);references.push({fileName:ref.name+(mimeType==='image/png'?'.png':'.jpg'),mimeType,data:base64(bytes)});}
+   const fresh=await bindingFor(principal,args,false);if(fresh.trip.snapshotId!==args.snapshot||fresh.trip.handoff.preparedAt!==b.trip.handoff.preparedAt)fail(409,'Trip changed while preparing references');
+   const outfit={date:look.date,slot:look.slot||'day',variant:args.variant,itemIds:look.itemIds,scene:look.scene};
+   const key=[args.trip_id,args.snapshot,staged.updatedAt,args.date,args.slot,args.variant].join(':');
+   const summary={status:'awaiting_file_registration',key,outfit,fileNames:references.map(r=>r.fileName),instruction:'The reference component must register the actual files. Do not claim generation inputs are ready until registration succeeds.'};
+   return {structuredContent:summary,content:[{type:'text',text:JSON.stringify(summary)}],_meta:{referencesPackage:{key,outfit,expiresAt:fresh.expiresAt,references}}};
+  }
   if(name==='get_reference_image'){
    const index=args.index??0;if(!['sheet','face','item'].includes(args.kind)||typeof args.id!=='string'||!args.id||!Number.isInteger(index)||index<0||index>40)fail(400,'Invalid reference');
    const r=await upstream(b,{kind:args.kind,id:args.id,index:String(index)}),bytes=await limitedBytes(r,MAX_IMAGE),mimeType=imageType(bytes);
@@ -93,12 +121,14 @@ export function createServer(config,{fetch:request=fetch,now=Date.now}={}){
    if(!req.headers.get('Content-Type')?.startsWith('application/json'))return json({error:'Use application/json'},415);
    const source=await limitedBytes(req,2*1024*1024);let rpc;try{rpc=JSON.parse(new TextDecoder().decode(source))}catch{return json({jsonrpc:'2.0',id:null,error:{code:-32700,message:'Invalid JSON'}},400)}
    if(!rpc||rpc.jsonrpc!=='2.0'||typeof rpc.method!=='string'||rpc.id!==undefined&&typeof rpc.id!=='string'&&typeof rpc.id!=='number')return json({jsonrpc:'2.0',id:null,error:{code:-32600,message:'Invalid request'}},400);
-   if(!['initialize','notifications/initialized','ping','tools/list','tools/call'].includes(rpc.method))return json({jsonrpc:'2.0',id:rpc.id??null,error:{code:-32601,message:'Method not found'}});
+   if(!['initialize','notifications/initialized','ping','tools/list','tools/call','resources/list','resources/read'].includes(rpc.method))return json({jsonrpc:'2.0',id:rpc.id??null,error:{code:-32601,message:'Method not found'}});
    // Discovery is public; tool calls alone authenticate and require approved-trip binding.
    let result;
-   if(rpc.method==='initialize')result={protocolVersion:['2025-03-26','2025-06-18','2025-11-25'].includes(rpc.params?.protocolVersion)?rpc.params.protocolVersion:'2025-03-26',serverInfo:{name:'wardrobe-connector-dev',version:'0.2.0'},capabilities:{tools:{listChanged:false}}};
+   if(rpc.method==='initialize')result={protocolVersion:['2025-03-26','2025-06-18','2025-11-25'].includes(rpc.params?.protocolVersion)?rpc.params.protocolVersion:'2025-03-26',serverInfo:{name:'wardrobe-connector-dev',version:'0.2.0'},capabilities:{tools:{listChanged:false},resources:{}}};
    if(rpc.method==='notifications/initialized')return new Response(null,{status:202});
    if(rpc.method==='ping')result={};
+   if(rpc.method==='resources/list')result={resources:[{uri:referenceWidgetUri,name:'Outfit reference registration',mimeType:'text/html;profile=mcp-app'}]};
+   if(rpc.method==='resources/read'){if(![referenceWidgetUri,'ui://wardrobe/outfit-references-v1.html'].includes(rpc.params?.uri))return json({jsonrpc:'2.0',id:rpc.id??null,error:{code:-32602,message:'Unknown resource'}});result={contents:[{uri:rpc.params.uri,mimeType:'text/html;profile=mcp-app',text:referenceWidgetHtml,_meta:{'openai/widgetDescription':'Registers approved outfit photos as actual ChatGPT reference files. Does not generate or complete a lookbook.','openai/widgetCSP':{connect_domains:[],resource_domains:[]},ui:{csp:{connectDomains:[],resourceDomains:[]}}}}]};}
    if(rpc.method==='tools/list')result={tools:toolDescriptors};
    if(rpc.method==='tools/call'){
     if(rpc.id===undefined)return json({jsonrpc:'2.0',id:null,error:{code:-32600,message:'Tool calls require a request ID'}},400);

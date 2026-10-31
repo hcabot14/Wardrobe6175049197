@@ -21,7 +21,7 @@ const assert=require('node:assert/strict');
   }
   if(u.origin==='https://files.test'){assert.equal(options.redirect,'error');assert.equal(options.headers,undefined);return new Response(png)}
   assert.equal(u.origin,base);assert.equal(u.pathname,'/functions/v1/wardrobe-handoff');assert.equal(u.searchParams.get('user'),user);assert.equal(u.searchParams.get('wardrobe'),'w-test');assert.equal(u.searchParams.get('snapshot'),'snapshot');assert.equal(options.headers.Authorization,'Bearer PRIVATE-HANDOFF-TOKEN');assert.ok(!u.href.includes('PRIVATE'));
-  if(u.searchParams.get('kind')==='bundle')return Response.json({catalogMatches,instructions:'Plan from actual references',catalog:{items:[{id:'OW-001'}]},currentCatalog:{items:[{id:'OW-001'}]},photoAttachments:[{filename:'sheet.jpg',image:'SECRET-STORAGE',itemIds:['OW-001']}],faceAttachments:[{id:'face',image:'SECRET-STORAGE'}]});
+  if(u.searchParams.get('kind')==='bundle')return Response.json({catalogMatches,instructions:'Plan from actual references',catalog:{items:[{id:'OW-001',photoCount:1}]},currentCatalog:{items:[{id:'OW-001'}]},photoAttachments:[{filename:'sheet.jpg',image:'SECRET-STORAGE',itemIds:['OW-001']}],faceAttachments:[{id:'face',image:'SECRET-STORAGE'}]});
   if(u.searchParams.get('kind'))return u.searchParams.get('id')==='outside'?Response.json({}, {status:403}):new Response(png);
   if(u.searchParams.get('action')==='proposal'){const body=JSON.parse(options.body);assert.equal(body.plan.snapshotId,'snapshot');status=body.status;return Response.json({saved:true,status})}
   assert.ok(options.body instanceof FormData);assert.equal(options.body.get('image').size,png.length);return Response.json({saved:true,id:'render-test'});
@@ -32,10 +32,12 @@ const assert=require('node:assert/strict');
  async function rpc(method,params,token=acceptedToken,handler=serve){return handler(new Request(resource,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})}))}
  async function call(name,more={},token=acceptedToken){const response=await rpc('tools/call',{name,arguments:{...args,...more}},token);return {response,body:await response.json()}}
  let response=await rpc('initialize',{protocolVersion:'2025-06-18'},'');assert.equal((await response.json()).result.protocolVersion,'2025-06-18');
- response=await rpc('tools/list',{},'');assert.equal((await response.json()).result.tools.length,5);assert.equal(authCalls,0);assert.equal(requests.length,0);
+ response=await rpc('tools/list',{},'');assert.equal((await response.json()).result.tools.length,6);assert.equal(authCalls,0);assert.equal(requests.length,0);
+ response=await rpc('resources/read',{uri:toolDescriptors.find(x=>x.name==='prepare_outfit_references')._meta.ui.resourceUri},'');const widget=(await response.json()).result.contents[0];assert.ok(widget.text.includes('uploadFile'));assert.ok(!widget.text.includes('SERVER-KEY'));assert.deepEqual(widget._meta['openai/widgetCSP'].connect_domains,[]);
+ response=await rpc('resources/read',{uri:'ui://wardrobe/outfit-references-v1.html'},'');assert.equal((await response.json()).result.contents[0].uri,'ui://wardrobe/outfit-references-v1.html');
  const upload=toolDescriptors.find(x=>x.name==='upload_render');assert.deepEqual(upload._meta['openai/fileParams'],['image']);assert.deepEqual(upload.inputSchema.properties.image.required,['download_url','file_id']);
  response=await serve(new Request(resource+'/.well-known/oauth-protected-resource'));assert.equal((await response.json()).resource,resource);
- response=await serve(new Request(base+'/wardrobe-connector-dev',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'})}));assert.equal(response.status,200);assert.equal((await response.json()).result.tools.length,5);
+ response=await serve(new Request(base+'/wardrobe-connector-dev',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'})}));assert.equal(response.status,200);assert.equal((await response.json()).result.tools.length,6);
  response=await serve(new Request(base+'/wardrobe-connector-dev/.well-known/oauth-protected-resource'));assert.equal((await response.json()).resource,resource);
  let result=await call('get_trip_bundle',{},'');assert.equal(result.response.status,401);assert.match(result.response.headers.get('WWW-Authenticate'),/resource_metadata/);
  result=await call('get_trip_bundle',{},'forged');assert.equal(result.response.status,401);
@@ -50,6 +52,11 @@ const assert=require('node:assert/strict');
  result=await call('get_trip_bundle',{user_id:'attacker'});assert.equal(result.body.result.isError,true);
  catalogMatches=false;result=await call('get_trip_bundle');assert.equal(result.body.result.isError,true);catalogMatches=true;
  result=await call('save_proposal',{snapshot:'snapshot',proposal:plan});assert.equal(status,'rendering');assert.equal(JSON.parse(result.body.result.content[0].text).saved,true);
+ plan.outfits=[{date:'2026-12-01',slot:'day',itemIds:['OW-001'],scene:'Test city'}];
+ result=await call('prepare_outfit_references',{snapshot:'snapshot',date:'2026-12-01',slot:'day',variant:'owned'});assert.equal(result.body.result.isError,undefined);const registration=result.body.result;assert.equal(registration._meta.referencesPackage.references.length,2);assert.ok(!registration.content[0].text.includes('iVBOR'));assert.ok(!JSON.stringify(registration).includes('PRIVATE'));assert.ok(!JSON.stringify(registration).includes('SERVER-KEY'));assert.equal(JSON.parse(registration.content[0].text).status,'awaiting_file_registration');
+ result=await call('prepare_outfit_references',{snapshot:'old',date:'2026-12-01',slot:'day',variant:'owned'});assert.equal(result.body.result.isError,true);
+ plan.outfits[0].productIds=['REC-001'];result=await call('prepare_outfit_references',{snapshot:'snapshot',date:'2026-12-01',slot:'day',variant:'owned'});assert.equal(result.body.result.isError,true);delete plan.outfits[0].productIds;
+ result=await call('prepare_outfit_references',{snapshot:'snapshot',date:'2026-12-02',slot:'day',variant:'owned'});assert.equal(result.body.result.isError,true);
  const uploadArgs={snapshot:'snapshot',proposal_id:'trip-test',image:{file_id:'file-test',download_url:'https://files.test/render.png'},metadata:{itemIds:['OW-001']}};
  result=await call('upload_render',uploadArgs);assert.equal(JSON.parse(result.body.result.content[0].text).saved,true);
  const before=requests.filter(x=>x.url.startsWith('https://files.test')).length;

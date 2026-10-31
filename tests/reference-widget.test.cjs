@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict');
+(async()=>{
+ const {registerReferences}=await import('../supabase/functions/wardrobe-connector-dev/reference-widget.mjs');
+ const refs=[{fileName:'Face-reference-1.png',mimeType:'image/png',data:Buffer.from('actual-image-bytes').toString('base64')},{fileName:'OW-012-0.jpg',mimeType:'image/jpeg',data:Buffer.from('garment-bytes').toString('base64')}];
+ const payload={key:'trip:snapshot:date:day',expiresAt:new Date(Date.now()+60000).toISOString(),outfit:{itemIds:['OW-012']},references:refs};let uploads=[];const host={widgetState:null,uploadFile:async f=>{uploads.push({name:f.name,bytes:await f.text()});return {fileId:'file-'+uploads.length}},setWidgetState:s=>{host.widgetState=s}};
+ await registerReferences(host,payload);assert.deepEqual(uploads.map(x=>x.bytes),['actual-image-bytes','garment-bytes']);assert.deepEqual(host.widgetState.imageIds,['file-1','file-2']);assert.equal(host.widgetState.modelContent.status,'registered');assert.ok(!JSON.stringify(host.widgetState).includes('actual-image-bytes'));await registerReferences(host,payload);assert.equal(uploads.length,2);
+ await assert.rejects(registerReferences({},payload),/does not support/);await assert.rejects(registerReferences(host,{...payload,expiresAt:'2000-01-01'}),/expired/);
+ let attempt=0;const partial={uploadFile:async()=>{if(++attempt===2)throw Error('upload unavailable');return {fileId:'file-first'}},setWidgetState:s=>{partial.widgetState=s}};await assert.rejects(registerReferences(partial,payload),/unavailable/);assert.equal(partial.widgetState.imageIds.length,1);assert.equal(partial.widgetState.modelContent.status,'registering');partial.uploadFile=async()=>({fileId:'file-second'});await registerReferences(partial,payload);assert.equal(partial.widgetState.imageIds.length,2);
+ console.log('Passed: exact-byte host file uploads, persistent reference IDs, retry without duplicate uploads, expiry, missing host support and partial failure.');
+})().catch(e=>{console.error(e);process.exitCode=1});
