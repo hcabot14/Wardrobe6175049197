@@ -4,6 +4,9 @@ on:
     paths:
       - '.github/workflows/wardrobe-handoff-smoke.yml'
       - 'workflow.js'
+      - 'connector.html'
+      - 'connector/approval/**'
+      - 'supabase/functions/wardrobe-connector-dev/**'
       - 'supabase/functions/wardrobe-handoff/**'
       - 'tests/**'
   workflow_dispatch:
@@ -69,3 +72,4 @@ jobs:
               assert len(image)>1000 and image[:3]==bytes.fromhex('ffd8ff') and image[-2:]==bytes.fromhex('ffd9')
           print('PASS: authenticated JPEG retrieval. No image or credential published.')
           PY
+

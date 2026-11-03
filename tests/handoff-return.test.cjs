@@ -36,6 +36,7 @@ const optionalPlan=structuredClone(plan);optionalPlan.gaps=[{id:'REC-001',item:'
 assert.equal((await handle(req({action:'proposal'},{plan:optionalPlan,status:'rendering'}))).status,200);
 const wrongForm=new FormData();wrongForm.set('image',new File([new Uint8Array([255,216,255,224,0,1])],'look.jpg'));wrongForm.set('metadata',JSON.stringify({date:'2026-10-13',slot:'evening',variant:'optional-1',itemIds:['OW-001'],scene:'Edgartown'}));
 assert.equal((await handle(new Request('https://test.invalid/handoff?'+q,{method:'POST',headers:{Authorization:'Bearer '+token},body:wrongForm}))).status,409);
-record.data.handoff.returnAccess.expiresAt='2000-01-01';assert.equal((await handle(req({kind:'bundle'}))).status,401);
-assert.ok(writes.every(x=>x.kind!=='trip'&&x.kind!=='item'));console.log('Passed: private bundle, cross-account and cross-wardrobe isolation, token/expiry/snapshot checks, scoped proposals, invalid IDs/dates, partial progress, real image upload and completeness gate.');
+record.data.handoff.returnAccess.expiresAt='2000-01-01';assert.equal((await handle(req({kind:'bundle'}))).status,200);record.data.handoff.returnAccess.expiresAt=null;assert.equal((await handle(req({kind:'bundle'}))).status,200);
+assert.ok(writes.every(x=>x.kind!=='trip'&&x.kind!=='item'));console.log('Passed: private bundle, cross-account and cross-wardrobe isolation, token/persistent-access/snapshot checks, scoped proposals, invalid IDs/dates, partial progress, real image upload and completeness gate.');
 })().catch(e=>{console.error(e);process.exitCode=1});
+

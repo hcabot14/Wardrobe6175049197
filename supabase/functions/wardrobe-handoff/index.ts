@@ -1,4 +1,4 @@
-// Short-lived, trip-scoped capability. No model calls or client-side secret keys.
+// Persistent, trip-scoped capability. No model calls or client-side secret keys.
 const base=Deno.env.get('SUPABASE_URL')!;
 const secret=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}').default;
 const headers={apikey:secret,Authorization:'Bearer '+secret};
@@ -31,14 +31,14 @@ Deno.serve(async req=>{
   const u=new URL(req.url),user=u.searchParams.get('user')||'',wardrobe=u.searchParams.get('wardrobe')||'',trip=u.searchParams.get('trip')||'',snapshot=u.searchParams.get('snapshot')||'';
   if(!/^[0-9a-f-]{36}$/.test(user)||!/^w-[a-z0-9]+$/.test(wardrobe)||!/^trip-[a-z0-9-]+$/.test(trip)||!snapshot)return json({error:'Invalid scope'},400);
   const record=(await rows(user,wardrobe,'trip',trip))[0],access=record?.data?.handoff?.returnAccess;
-  if(!record||!access||!await sameSecret(req.headers.get('Authorization')?.replace(/^Bearer /,'')||'',access.token)||Date.parse(access.expiresAt)<=Date.now()||!Number.isFinite(Date.parse(access.expiresAt)))return json({error:'Invalid or expired trip access'},401);
+  if(!record||!access||!await sameSecret(req.headers.get('Authorization')?.replace(/^Bearer /,'')||'',access.token))return json({error:'Invalid trip access'},401);
   if(record.data.snapshotId!==snapshot)return json({error:'Wardrobe snapshot changed'},409);
   const active=(await rows(user,wardrobe,'item')).filter((x:any)=>!x.data.archived&&!x.data.mergedInto);
   const currentVersion=active.map((x:any)=>({id:x.id,updatedAt:x.data.updatedAt,photoCount:(x.data.photos||[]).length}));
   const catalogMatches=catalogVersion(currentVersion)===catalogVersion(record.data.handoff.catalog.items);
   if(req.method==='GET'&&u.searchParams.get('kind')==='bundle'){
    const currentCatalog={wardrobe,items:active.map(({id,data}:any)=>({id,category:data.category,name:data.name,color:data.color,brand:data.brand,material:data.material,size:data.size,notes:data.notes,extra:data.extra,reversible:!!data.reversible,updatedAt:data.updatedAt,photoCount:(data.photos||[]).length}))};
-   return json({tripId:trip,snapshotId:snapshot,catalogMatches,instructions:record.data.handoff.instructions,catalog:record.data.handoff.catalog,currentCatalog,photoAttachments:(record.data.handoff.photoAttachments||[]).map(({image,...sheet}:any)=>sheet),faceAttachments:record.data.handoff.faceAttachments||[],expiresAt:access.expiresAt});
+   return json({tripId:trip,snapshotId:snapshot,catalogMatches,instructions:record.data.handoff.instructions,catalog:record.data.handoff.catalog,currentCatalog,photoAttachments:(record.data.handoff.photoAttachments||[]).map(({image,...sheet}:any)=>sheet),faceAttachments:record.data.handoff.faceAttachments||[],expiresAt:null});
   }
   if(!catalogMatches)return json({error:'Active wardrobe changed; prepare a fresh handoff'},409);
   if(req.method==='POST'&&u.searchParams.get('action')==='proposal'){
@@ -102,3 +102,4 @@ Deno.serve(async req=>{
   return json({saved:true,id,image,tripId:trip,snapshotId:snapshot});
  }catch{return json({error:'Unable to process handoff request'},500);}
 });
+
