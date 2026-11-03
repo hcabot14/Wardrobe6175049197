@@ -46,7 +46,7 @@ and visually inspect the images before planning. Message attachments are not
 required for this connected path. Download/share options remain for file-based
 fallbacks. Direct app launch copies text; it does not inject a message into ChatGPT.
 
-The endpoint checks a short-lived bearer token, exact user/wardrobe/trip scope,
+The endpoint checks a trip-scoped bearer token, exact user/wardrobe/trip scope,
 snapshot, and sheet manifest before returning private photo bytes. It also serves
 full garment references and accepts generated images matching a saved proposal.
 The app reviews complete proposals and reports incomplete results without
@@ -69,3 +69,18 @@ Recommendation audit: after building the owned capsule, assess its weakest links
 The `/beta/` app uses its own browser storage and PWA cache. New users create a Wardrobe account; no Supabase or GitHub connector setup is required. The separate `wardrobe-beta-handoff` function accepts only an expiring trip capability and exposes a scoped bundle, private reference downloads, proposal return, and render upload. It never grants SQL or project administration access. The copied request contains this private capability in an Authorization header instruction; do not share that request publicly.
 
 Free ChatGPT users need a Work session with HTTP/file/image capabilities. Upload and image limits may require resuming. Free-account end-to-end operation is a pilot validation requirement, not a guaranteed capability. Use a small starter closet and three-day trip. Tests: `node tests/beta-workflow.test.cjs` and `node tests/beta-transfer.test.cjs`. This test link is not enforced invite-only access; account registration follows the existing authentication service settings.
+
+
+### Persistent trip approval
+
+The main app's trip approval and private handoff do not expire with time.
+Account authentication, exact client/wardrobe/trip/snapshot scope, catalog freshness,
+explicit withdrawal and replacement-token checks still apply. Existing approved
+records remain usable regardless of their legacy `expiresAt` timestamp; new
+records and bundle responses use `expiresAt: null`. Missing or withdrawn grants
+are never recreated by the connector.
+
+Deploy both `wardrobe-handoff` and `wardrobe-connector-dev` with JWT gateway
+verification disabled (each validates its own credentials), then publish the
+frontend. The connector source here was recovered from deployed version 11.
+The separate `/beta/` app retains its existing capability contract.

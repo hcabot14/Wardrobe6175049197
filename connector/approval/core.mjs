@@ -15,20 +15,21 @@ export function createApproval({base,anon,clientId,redirectUri,resource,storage,
   if(d.authorization_id!==id||d.client?.id!==clientId||d.user?.id!==session.uid||d.redirect_uri!==redirectUri||!String(d.scope||'').split(' ').includes('openid')||String(d.scope).split(/\s+/).filter(Boolean).some(x=>!['openid','email','offline_access'].includes(x)))throw Error('This request does not match the Wardrobe development connector.');
   details=d;return {clientName:d.client.name||'ChatGPT',account:d.user.email,scope:d.scope};
  }
- async function preparedTrips(){configured();await identity();const q=new URLSearchParams({select:'wardrobe,id,data',user_id:'eq.'+session.uid,kind:'eq.trip',deleted:'eq.false',limit:'200'});const rows=await api('/rest/v1/records?'+q);return rows.filter(x=>x.data?.snapshotId&&Number.isFinite(Date.parse(x.data?.handoff?.returnAccess?.expiresAt))&&Date.parse(x.data.handoff.returnAccess.expiresAt)>now()).map(x=>({id:x.id,wardrobe:x.wardrobe,name:x.data.name||x.id,snapshot:x.data.snapshotId,expiresAt:x.data.handoff.returnAccess.expiresAt}));}
+ async function preparedTrips(){configured();await identity();const q=new URLSearchParams({select:'wardrobe,id,data',user_id:'eq.'+session.uid,kind:'eq.trip',deleted:'eq.false',limit:'200'});const rows=await api('/rest/v1/records?'+q);return rows.filter(x=>x.data?.snapshotId&&x.data?.handoff?.returnAccess?.token).map(x=>({id:x.id,wardrobe:x.wardrobe,name:x.data.name||x.id,snapshot:x.data.snapshotId,expiresAt:null}));}
  async function approveTrip(selection){configured();await identity();
-  const fresh=(await preparedTrips()).find(x=>x.id===selection.id&&x.wardrobe===selection.wardrobe&&x.snapshot===selection.snapshot);if(!fresh)throw Error('This trip changed or expired. Prepare it again in Wardrobe.');
+  const fresh=(await preparedTrips()).find(x=>x.id===selection.id&&x.wardrobe===selection.wardrobe&&x.snapshot===selection.snapshot);if(!fresh)throw Error('This trip changed or is no longer prepared. Prepare it again in Wardrobe.');
   if(details&&details.user.id!==session.uid)throw Error('Wardrobe account changed. Reopen the connection request.');
-  const expiresAt=new Date(Math.min(Date.parse(fresh.expiresAt),now()+24*3600000)).toISOString();
+  const expiresAt=null;
   const grant={clientId,tripId:fresh.id,snapshot:fresh.snapshot,scopes:['wardrobe.read','wardrobe.write'],expiresAt};
   const row={user_id:session.uid,wardrobe:fresh.wardrobe,kind:'connector_grant',id:fresh.id,data:grant,deleted:false};
   await api('/rest/v1/records?on_conflict=user_id,wardrobe,kind,id',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(row)});
   approvedTrip={...fresh,grant};return {expiresAt,tripName:fresh.name};
  }
  async function revokeTrip(selection){configured();await identity();if(!/^w-[a-z0-9]+$/.test(selection.wardrobe)||!/^trip-[a-z0-9-]+$/.test(selection.id))throw Error('Invalid trip');const q=new URLSearchParams({user_id:'eq.'+session.uid,wardrobe:'eq.'+selection.wardrobe,kind:'eq.connector_grant',id:'eq.'+selection.id});await api('/rest/v1/records?'+q,{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({deleted:true})});approvedTrip=null;}
- async function decide(id,action){if(!details||details.authorization_id!==id||!['approve','deny'].includes(action))throw Error('Load a valid connection request first.');if(action==='approve'&&(!approvedTrip||Date.parse(approvedTrip.grant.expiresAt)<=now()))throw Error('Choose and approve a prepared trip first.');
+ async function decide(id,action){if(!details||details.authorization_id!==id||!['approve','deny'].includes(action))throw Error('Load a valid connection request first.');if(action==='approve'&&!approvedTrip)throw Error('Choose and approve a prepared trip first.');
   if(action==='deny'&&approvedTrip)await revokeTrip(approvedTrip);
   const d=await api('/auth/v1/oauth/authorizations/'+encodeURIComponent(id)+'/consent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});return {redirect:safeCallback(d.redirect_url)};
  }
  return {loadAuthorization,preparedTrips,approveTrip,revokeTrip,decide};
 }
+
