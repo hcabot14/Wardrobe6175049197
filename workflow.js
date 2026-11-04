@@ -1,6 +1,6 @@
 /* Subscription workflow: no model API calls. Existing records and sync stay intact. */
 'use strict';
-const APP_RELEASE='49';
+const APP_RELEASE='51';
 // Restore the native iPhone route used in v24-v28. Launch directly on a tap.
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 // This opens the saved conversation; clipboard handoff still requires paste/send.
@@ -83,14 +83,33 @@ async function planningPhotoFiles(list,id){
  const files=[],manifest=[],columns=6,perSheet=36;
  for(let n=0;n<list.length;n+=perSheet){
   const chunk=list.slice(n,n+perSheet),sheet=files.length+1,c=document.createElement('canvas');c.width=columns*480;c.height=65+Math.ceil(chunk.length/columns)*455;
-  const g=c.getContext('2d');g.fillStyle='white';g.fillRect(0,0,c.width,c.height);g.fillStyle='#222';g.font='28px sans-serif';g.fillText(`${profile.name} · current wardrobe · sheet ${sheet} · snapshot ${id}`,24,40);
+  try {
+  const g=c.getContext('2d');
+  if(!g)throw new Error('Could not allocate contact sheet '+sheet+'.');
+  g.fillStyle='white';g.fillRect(0,0,c.width,c.height);
+  g.fillStyle='#222';g.fillRect(8,16,12,24);
+  g.font='28px sans-serif';g.fillText(`${profile.name} · current wardrobe · sheet ${sheet} · snapshot ${id}`,28,40);
   for(const [i,it]of chunk.entries()){
    const x=i%columns*480,y=65+Math.floor(i/columns)*455;g.strokeStyle='#ddd';g.strokeRect(x+4,y,472,449);const u=(it.photos||[])[0];
    if(u){try{const im=await loadImg(u),k=Math.min(456/im.width,350/im.height);g.drawImage(im,x+(480-im.width*k)/2,y+8+(350-im.height*k)/2,im.width*k,im.height*k)}catch{throw new Error(`Could not read ${it.id}'s photo. Fix it before continuing.`)}}
    g.fillStyle='#222';g.font='bold 24px sans-serif';g.fillText(it.id+(u?'':' · NO PHOTO'),x+12,y+388);g.font='19px sans-serif';g.fillText((it.name||'').slice(0,43),x+12,y+417,454);
   }
-  const file=await canvasFile(c,`Wardrobe-${id}-sheet-${String(sheet).padStart(2,'0')}.jpg`);if(!file.size)throw new Error('Could not prepare wardrobe photos. Please try again.');
+  const file=await canvasFile(c,`Wardrobe-${id}-sheet-${String(sheet).padStart(2,'0')}.jpg`);
+  const width=c.width,height=c.height;
+  c.width=c.height=1;
+  const url=URL.createObjectURL(file);
+  try {
+   const image=await loadImg(url);
+   const check=c.getContext('2d');
+   if(!check||image.naturalWidth!==width||image.naturalHeight!==height)throw new Error('Invalid sheet dimensions');
+   check.drawImage(image,12,24,1,1,0,0,1,1);
+   const [red,green,blue,alpha]=check.getImageData(0,0,1,1).data;
+   if(alpha!==255||Math.max(red,green,blue)>100)throw new Error('Missing sheet header');
+  }catch{
+   throw new Error('Contact sheet '+sheet+' exported blank or unreadable. Tap Generate to retry.');
+  }finally{URL.revokeObjectURL(url)}
   files.push(file);manifest.push({sheet,filename:file.name,itemIds:chunk.map(it=>it.id),missingPhotoIds:chunk.filter(it=>!it.photos?.length).map(it=>it.id)});
+  }finally{c.width=c.height=1}
  }
  return {files,manifest};
 }
@@ -119,7 +138,20 @@ function updateJourneyAction(){$('#planBtn').disabled=handoffWorking;const saved
 async function prepareLookbookRender(plan){const revision=++journeyRevision;directRenderPack=null;$('#planBtn').disabled=true;$('#planMsg').textContent='Checking private photo access…';try{const trip=trips.find(t=>t.id===plan.tripId);await verifyHandoffReady(trip,profile.cloudId);let saved=null;try{saved=(await api('/rest/v1/records?select=data&kind=eq.render&deleted=eq.false&wardrobe=eq.'+encodeURIComponent(profile.cloudId))).map(r=>r.data);}catch{}const pack=privateLookbookRequest(plan,trip,saved);if(revision!==journeyRevision||editingTrip!==plan.tripId)return;directRenderPack=pack;$('#planMsg').textContent='';$('#requestFiles').innerHTML='<p class="muted sm">Render copies the private photo-download request and opens ChatGPT. Paste and send. No ZIP or photo attachment is required. The receiving chat must support authenticated file downloads and image generation.</p><button class="link" data-reviewreturn>Review returned lookbook</button>';$('[data-reviewreturn]').onclick=()=>checkReturnedPlans(true);$('#renderChoice').textContent=pack.queue.length+' looks · private photo download';}catch(e){if(revision===journeyRevision)$('#planMsg').textContent=e.message}finally{if(revision===journeyRevision)$('#planBtn').disabled=false;}}
 function showRenderChoice(plan){stagedTripPlans.set(plan.tripId,plan);if(editingTrip!==plan.tripId)return;$('#renderChoice').textContent='Entire lookbook';updateJourneyAction();prepareLookbookRender(plan);}
 async function refreshJourneyStage(id){const t=trips.find(x=>x.id===id);if(!session||!profile.cloudId||!t)return;try{const rows=await api('/rest/v1/records?select=data&kind=eq.proposal&deleted=eq.false&wardrobe=eq.'+encodeURIComponent(profile.cloudId)+'&id=eq.'+encodeURIComponent(id));const plan=rows?.[0]?.data?.plan;if(!plan||plan.tripId!==id||!preparedTripIsCurrent(t))return;validatePlan(plan);if(editingTrip===id)showRenderChoice(plan);else stagedTripPlans.set(id,plan);}catch{/* A stale or unavailable proposal never enables Render. */}}
-async function resumePreparedRequest(id){const t=trips.find(x=>x.id===id);if(editingTrip!==id||stagedTripPlans.has(id)||!preparedTripIsCurrent(t))return;try{const revision=journeyRevision,files=[];for(const sheet of t.handoff.photoAttachments||[]){let u=sheet.image;if(u?.startsWith('sb:'))u=await downloadPhoto(u.slice(3));if(!u)throw new Error('A saved reference could not be loaded. Tap Generate to rebuild it.');const blob=await dataURLtoBlob(u);files.push(new File([blob],sheet.filename,{type:blob.type}));}const fp=await handoffFaces();if(editingTrip===id&&journeyRevision===revision&&!stagedTripPlans.has(id)&&preparedTripIsCurrent(t))copyRequestPanel(t,$('#requestFiles'),files.concat(fp.files));}catch(e){if(editingTrip===id)$('#planMsg').textContent=e.message;}}
+function resumePreparedRequest(id){
+ const t=trips.find(x=>x.id===id);
+ if(editingTrip===id&&!stagedTripPlans.has(id)&&preparedTripIsCurrent(t))copyRequestPanel(t,$('#requestFiles'));
+}
+async function fallbackTripPhotos(t){
+ const files=[];
+ for(const sheet of t.handoff.photoAttachments||[]){
+  const image=sheet.image?.startsWith('sb:')?await downloadPhoto(sheet.image.slice(3)):sheet.image;
+  if(!image)throw new Error('A saved reference could not be loaded. Tap Generate to rebuild it.');
+  const blob=await dataURLtoBlob(image);
+  files.push(new File([blob],sheet.filename,{type:blob.type}));
+ }
+ return files.concat((await handoffFaces()).files);
+}
 async function renderCurrentOutfit(){if(!directRenderPack){$('#planMsg').textContent='Wait for private photo access to finish checking.';return}const pack=directRenderPack;try{pack.fresh()}catch(e){$('#planMsg').textContent=e.message;return}try{if(!navigator.clipboard?.writeText)throw new Error('Clipboard is unavailable.');await navigator.clipboard.writeText(pack.prompt);}catch{$('#planMsg').textContent='Automatic copying did not finish. Copy the private request below, then open ChatGPT.';showPrivateRequestCopy(pack.prompt);return}try{pack.fresh();$('#planMsg').textContent='Private request copied. Opening ChatGPT…';saveJourneyView();window.location.assign(chatGPTRoute());}catch(e){$('#planMsg').textContent=e.message;}}
 function showPrivateRequestCopy(text){const out=$('#requestFiles');if(!out.querySelector('[data-manualprivate]'))out.insertAdjacentHTML('beforeend','<div data-manualprivate><p>Copy this private request. It contains private access to this trip; paste it only in your ChatGPT chat.</p><textarea readonly aria-label="Private lookbook request"></textarea><a class="btn" data-manualchat>Open ChatGPT</a></div>');out.querySelector('textarea').value=text;out.querySelector('[data-manualchat]').href=chatGPTRoute();}
 function draftValues(){const plans=$('#tp_plans').value.trim();if(!plans)throw new Error('Tell me about your trip first.');const existing=trips.find(t=>t.id===editingTrip);return {where:existing?.where||plans.split(/\n/)[0].slice(0,80),plans,conversational:true}}
@@ -170,7 +202,7 @@ function connectedRequest(t){
  return `Design my trip with me one day at a time using the installed Wardrobe development connector. Start with the first unapproved date and wait for my explicit next before advancing. Do not make a complete proposal up front or require a separate return to Wardrobe between planning and rendering.
 ${dayByDayInstructions()} First attach @Wardrobe development to this message if it is not already selected. This development connection is available only to accounts where it has been installed; opening a project link does not attach it automatically.
 Use these exact tool arguments: ${JSON.stringify({wardrobe_id:profile.cloudId,trip_id:t.id,snapshot:t.snapshotId})}.
-First call get_trip_bundle with wardrobe_id and trip_id. Use its catalog, references and itinerary; the manual day-by-day review instructions in this request override any older batch instructions in the saved bundle. Verify the returned snapshot matches ${t.snapshotId}. The server checks catalog freshness and trip approval. Retrieve EVERY sheet and EVERY face reference through get_reference_image using the exact manifest IDs, and actually inspect the image content. Never use remembered clothes or invent IDs. If get_reference_image fails to display (including AioRpcError), stop and ask me to use Send photo references in Wardrobe to attach the current sheets and face files. Do not repeatedly retry the broken display path or suggest changing modes. When actual image attachments are supplied, use them and the matching bundle catalog instead. Follow the connector workflow below for generation and return; it replaces any older HTTP transfer instructions in conversation history.
+First call get_trip_bundle with wardrobe_id and trip_id. Use its catalog, references and itinerary; the manual day-by-day review instructions in this request override any older batch instructions in the saved bundle. Verify the returned snapshot matches ${t.snapshotId}. The server checks catalog freshness and trip approval. Retrieve EVERY sheet and EVERY face reference through get_reference_image using the exact manifest IDs, and actually inspect the image content. Never use remembered clothes or invent IDs. If get_reference_image fails to display (including AioRpcError), report the exact failure and ask me to open Photo retrieval fallback in Wardrobe to attach the current sheets and face files. Do not repeatedly retry the broken display path or suggest changing modes. When actual image attachments are supplied, use them and the matching bundle catalog instead. Follow the connector workflow below for generation and return; it replaces any older HTTP transfer instructions in conversation history.
 ${renderTransferInstructions(t)}`;
 }
 
@@ -263,8 +295,20 @@ async function showDirectOutfits(tripId,out){
 function copyRequestPanel(t,out,files){
  const text=connectedRequest(t),preparedAt=t.handoff.preparedAt,faceVersion=faceSignature(),photos=referencePhotoSignature();
  const fresh=()=>{if(faceSignature()!==faceVersion||referencePhotoSignature()!==photos||snapshotId()!==t.snapshotId||trips.find(x=>x.id===t.id)?.handoff?.preparedAt!==preparedAt)throw new Error('The wardrobe or request changed. Tap Generate to prepare fresh photos.');};
- out.innerHTML='<p class="muted sm">Saved in Drafts. Continue in ChatGPT one day at a time. Say next to advance, or ask for changes to stay on that day. After the final day, ask ChatGPT to save the accepted collection here.</p><div data-copyresult role="status"></div><button class="link" data-reopenchat hidden>Open ChatGPT</button><button class="link" data-copytrip>Copy request</button><button class="link" data-sendtrip>Send photo references</button><button class="link" data-checkplan hidden>Check for outfit plan</button><button class="link" data-downloadphotos hidden>Download photo references</button>';
+ out.innerHTML='<p class="muted sm">Saved in Drafts. Continue in ChatGPT one day at a time. Say next to advance, or ask for changes to stay on that day. After the final day, ask ChatGPT to save the accepted collection here.</p><div data-copyresult role="status"></div><button class="link" data-reopenchat hidden>Open ChatGPT</button><button class="link" data-copytrip>Copy request</button><button class="link" data-checkplan hidden>Check for outfit plan</button><details><summary>Photo retrieval fallback</summary><p class="muted sm">ChatGPT retrieves photos from Wardrobe. Use this only if ChatGPT reports that retrieval failed.</p><button class="link" data-loadphotos>Prepare fallback photos</button><button class="link" data-sendtrip hidden>Send photo references</button><button class="link" data-downloadphotos hidden>Download photo references</button></details>';
  const result=out.querySelector('[data-copyresult]');
+ out.querySelector('[data-loadphotos]').onclick=async e=>{
+  const button=e.currentTarget;button.disabled=true;
+  try{
+   fresh();
+   files=files||await fallbackTripPhotos(t);
+   fresh();
+   out.querySelector('[data-sendtrip]').hidden=!navigator.canShare?.({files});
+   out.querySelector('[data-downloadphotos]').hidden=false;
+   result.textContent='Fallback photos are ready.';
+  }catch(err){result.textContent=err.message}
+  finally{button.disabled=false}
+ };
  const copy=()=>{fresh();return navigator.clipboard.writeText(text)};
  out.querySelector('[data-copytrip]').onclick=()=>{try{copy().then(()=>{result.textContent='Copied. Paste and send in ChatGPT.'}).catch(()=>{result.innerHTML='<textarea readonly aria-label="Trip request"></textarea>';result.querySelector('textarea').value=text;})}catch(e){result.textContent=e.message}};
  out.querySelector('[data-reopenchat]').onclick=async()=>{try{fresh();await navigator.clipboard.writeText(text);fresh();window.location.assign(chatGPTRoute());}catch(e){result.textContent='Copy the request first, then open your Wardrobe chat in ChatGPT.'}};
@@ -319,7 +363,7 @@ planTrip=async function(){const m=$('#planMsg'),b=$('#planBtn');requestReady=nul
  t.status='draft';t.snapshotId=id;t.handoff={version:5,preparedAt:now(),photoSignature:referencePhotoSignature(),faceSignature:faceSignature(),catalog:catalogSnapshot(),photoAttachments:storedSheets,faceAttachments:facePack.manifest,returnAccess:{endpoint:cloudBase()+'/functions/v1/wardrobe-handoff',token:Array.from(crypto.getRandomValues(new Uint8Array(32))).map(n=>n.toString(16).padStart(2,'0')).join(''),expiresAt:null},instructions:planningPrompt(t,id).replaceAll('attached','saved').replaceAll('Current-wardrobe.json','data.handoff.catalog')};t.updatedAt=now();
  await putTrip(t);await syncHandoff(t,wardrobe);await authorizePreparedTrip(t,wardrobe);requestReady={tripId:t.id,snapshotId:id};copyRequestPanel(t,$('#requestFiles'),pack.files.concat(facePack.files));m.textContent='';$('#replyDetails').open=false;
  }catch(e){m.textContent=e.message}finally{handoffWorking=false;b.disabled=false;$('#tp_plans').disabled=false;updateJourneyAction();saveJourneyView()}};
-$('#planBtn').onclick=async()=>{if(stagedTripPlans.has(editingTrip))return renderCurrentOutfit();if(!$('#tp_plans').value.trim()){$('#planMsg').textContent='Tell me about your trip first.';return}clearTimeout(briefSaveTimer);$('#tripCopyHint').hidden=false;await planTrip();const t=trips.find(t=>t.id===editingTrip);if(!requestReady||requestReady.tripId!==t?.id)return;try{await navigator.clipboard.writeText(connectedRequest(t));resetJourney();renderTrips();saveJourneyView();window.location.assign(chatGPTRoute());}catch{$('#requestFiles [data-reopenchat]').hidden=false;$('#planMsg').textContent='Your trip is saved. Tap Copy request, then Open ChatGPT below.';}};
+$('#planBtn').onclick=async()=>{if(stagedTripPlans.has(editingTrip))return renderCurrentOutfit();if(!$('#tp_plans').value.trim()){$('#planMsg').textContent='Tell me about your trip first.';return}clearTimeout(briefSaveTimer);$('#tripCopyHint').hidden=false;await planTrip();const t=trips.find(t=>t.id===editingTrip);if(!requestReady||requestReady.tripId!==t?.id)return;try{await navigator.clipboard.writeText(connectedRequest(t));saveJourneyView();window.location.assign(chatGPTRoute());}catch{$('#requestFiles [data-reopenchat]').hidden=false;$('#planMsg').textContent='Your trip is saved. Tap Copy request, then Open ChatGPT below.';}};
 function cleanTripCover(c){if(!c||!String(c.destination||'').trim())return null;const imageUrl=safeLink(c.imageUrl);if(!imageUrl.startsWith('https://'))return null;return {destination:String(c.destination).slice(0,120),imageUrl,sourceUrl:safeLink(c.sourceUrl),credit:String(c.credit||'').slice(0,240)}}
 function primaryTripDestination(t){
  const counts=new Map(),dates=new Set();
@@ -327,7 +371,7 @@ function primaryTripDestination(t){
  return [...counts].sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
 }
 function tripCardPicture(t){const cover=cleanTripCover(t.cover),destination=cover?.destination||primaryTripDestination(t);const paris=/^paris$/i.test(destination)||(!destination&&/\bparis\b/i.test(t.name+' '+(t.where||'')));const imageUrl=cover?.imageUrl||(paris?'./assets/paris.jpg':'');return imageUrl?`<span class="ico trip-photo"><img src="${esc(imageUrl)}" alt="${esc(cover?.destination||'Paris')}" title="${esc(cover?.credit||'Paris skyline · Anthony DELANOIX · CC0')}" loading="lazy" referrerpolicy="no-referrer"></span>`:`<span class="ico">${ICON.trip}</span>`}
-renderTrips=function(){const list=allTrips(),section=(title,ts)=>`<h3 class="grouph">${title}</h3>${ts.length?ts.map(t=>`<div class="trip-swipe-row"><button class="trip-delete" data-deletedraft="${esc(t.id)}" tabindex="-1" aria-hidden="true">Delete</button><button class="tcard panel" data-trip="${esc(t.id)}" ${canSwipeDraft(t)?'data-swipe-draft="true" style="touch-action:pan-y"':''}>${tripCardPicture(t)}<span><div class="nm">${esc(t.name)}</div><div class="muted sm">${esc(t.startDate||'Dates not set')}${t.endDate?' – '+esc(t.endDate):''} · ${tripOutfits(t).length} outfits${t.status==='draft'?' · Draft':''}</div></span></button></div>`).join(''):'<p class="muted sm">No journeys here yet.</p>'}`;$('#tripList').innerHTML=section('Upcoming & current',list.filter(t=>t.status!=='draft'&&!isPastTrip(t)))+section('Drafts',list.filter(t=>t.status==='draft'))+`<details><summary>Past trips (${list.filter(t=>t.status!=='draft'&&isPastTrip(t)).length})</summary>${section('Past journeys',list.filter(t=>t.status!=='draft'&&isPastTrip(t)))}</details>`};
+renderTrips=function(){const list=allTrips(),section=(title,ts)=>`<h3 class="grouph">${title}</h3>${ts.length?ts.map(t=>`<div class="trip-swipe-row"><button class="trip-delete" data-deletedraft="${esc(t.id)}" tabindex="-1" aria-hidden="true">Delete</button><button class="tcard panel" data-trip="${esc(t.id)}" ${canSwipeDraft(t)?'data-swipe-draft="true" style="touch-action:pan-y"':''}>${tripCardPicture(t)}<span><div class="nm">${esc(t.name)}</div><div class="muted sm">${esc(t.startDate||'Dates not set')}${t.endDate?' – '+esc(t.endDate):''} · ${tripOutfits(t).length} outfits${t.status==='draft'?' · Draft':''}</div></span></button></div>`).join(''):'<p class="muted sm">No journeys here yet.</p>'}`;const markup=section('Upcoming & current',list.filter(t=>t.status!=='draft'&&!isPastTrip(t)))+section('Drafts',list.filter(t=>t.status==='draft'))+`<details><summary>Past trips (${list.filter(t=>t.status!=='draft'&&isPastTrip(t)).length})</summary>${section('Past journeys',list.filter(t=>t.status!=='draft'&&isPastTrip(t)))}</details>`;const el=$('#tripList');if(el.dataset.renderedMarkup===markup)return;const pastOpen=el.querySelector('details')?.open;el.innerHTML=markup;el.querySelector('details').open=!!pastOpen;el.dataset.renderedMarkup=markup;};
 
 const validRenderImage=s=>typeof s==='string'&&(/^sb:[a-f0-9]{64}$/.test(s)||/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(s));
 const lookRenders=(r,x,variant='owned')=>(r.renders||[]).filter(z=>(z.variant||'owned')===variant&&(variant!=='owned'||(z.date===x.date&&z.slot===(x.slot||'day'))));
@@ -385,7 +429,7 @@ tryOnInChatGPT=function(o){const out=$('#tryonMsg'),error=renderErrors(o);if(err
 const oldRenderOutfit=renderOutfitView;
 renderOutfitView=function(first){oldRenderOutfit(first);const o=outfits.find(x=>x.id===openOutfitId);if(!o)return;if(o.tripId){$('#sheet .shead').insertAdjacentHTML('afterend','<button class="small" id="backJourney">← Back to journey</button>');$('#backJourney').onclick=()=>{openOutfitId=null;openTrip(o.tripId)}}const err=renderErrors(o);if(err)$('#tryonMsg').textContent=err};
 // Dates are evaluated at render time and on return from another app.
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&profile){if(tab==='trips')renderTrips();if(tab==='home')renderHome()}});
+
 const style=document.createElement('style');style.textContent='.trip-swipe-row{position:relative;overflow:hidden;border-radius:var(--radius,16px);margin-bottom:12px}.trip-swipe-row .tcard{position:relative;z-index:1;margin:0;width:100%;transition:transform .15s ease;background:var(--panel,#fff)}.trip-delete{position:absolute;inset:0 0 0 auto;width:88px;border:0;border-radius:0;background:#c43c35;color:white;font-weight:600}.trip-swipe-row:not(.revealed) .trip-delete{visibility:hidden}.trip-swipe-row.revealed .trip-delete{visibility:visible}#tab-trips textarea::placeholder{color:#8a8a8a;opacity:1}'+'.packrow{display:flex;align-items:center;gap:10px;padding:8px 0;margin:0}.packrow img{width:44px;height:52px;object-fit:contain;border-radius:6px}.packrow input{width:20px;height:20px}.packrow span{font-size:13px}.menu .mi{padding-left:0}#planReview{max-height:65vh;overflow:auto}#requestFiles .row a,#closetPack .row a{font-size:13px}';document.head.appendChild(style);
 
 exportForChatGPT=async function(){const out=$('#moreMsg');out.textContent='Preparing your current wardrobe…';try{const files=await requestFiles(strictRule+'\nUse the attached catalog and photos to discuss my wardrobe. Do not plan from prior memory.');handoffPanel(files,out,'Current active wardrobe ready.')}catch(e){out.textContent=e.message}};
@@ -507,7 +551,7 @@ async function checkReturnedPlans(manual=false){
  finally{checkingReturnedPlans=false}
 }
 const syncBeforeProposals=syncNow;
-syncNow=async function(){await syncBeforeProposals();if(!syncing)await checkReturnedPlans()};
+syncNow=async function(){await syncBeforeProposals();if(!syncing){if(tab==='trips'&&!handoffWorking)renderTrips();await checkReturnedPlans()}};
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkReturnedPlans()});
 
 
