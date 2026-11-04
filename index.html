@@ -449,6 +449,15 @@ function tx(store,mode,fn){
 }
 const reqP=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 const getAll=(store,d=db)=>reqP(d.transaction(store).objectStore(store).getAll());
+async function* scanItems(d){
+  let range;
+  while(true){
+    const batch=await reqP(d.transaction("items").objectStore("items").getAll(range,8));
+    if(!batch.length)return;
+    yield* batch;
+    range=IDBKeyRange.lowerBound(batch[batch.length-1].id,true);
+  }
+}
 const putItem=it=>tx("items","readwrite",s=>s.put(it));
 const delItem=id=>tx("items","readwrite",s=>s.delete(id));
 const addLog=e=>tx("log","readwrite",s=>s.add(e));
@@ -1818,7 +1827,7 @@ async function pushWardrobe(d,cloudId,status){
   const prof=await dGet(d,"meta","profile");
   if(prof&&st.pushed["meta:profile"]!==STAMP.meta(prof)){const {cloudId:_c,...p}=prof;rows.push({kind:"meta",id:"profile",data:p,deleted:false});sent.push(["meta:profile",STAMP.meta(prof)])}
   for(const [kind,store] of Object.entries(STORE))
-    for(const x of await getAll(store,d)){const id=kind==="log"?logKey(x):String(x.id), k=kind+":"+id, v=STAMP[kind](x)||"-";
+    for await(const x of (kind==="item"?scanItems(d):await getAll(store,d))){const id=kind==="log"?logKey(x):String(x.id), k=kind+":"+id, v=STAMP[kind](x)||"-";
       if(st.pushed[k]===v) continue; rows.push({kind,id,data:toCloud(kind,x,uploads),deleted:false}); sent.push([k,v])}
   const tombs=(await getAll("meta",d)).filter(m=>String(m.id).startsWith("del:"));
   for(const t of tombs) rows.push({kind:t.kind,id:t.key,data:{at:t.at},deleted:true});
