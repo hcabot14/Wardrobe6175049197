@@ -1,6 +1,6 @@
 /* Subscription workflow: no model API calls. Existing records and sync stay intact. */
 'use strict';
-const APP_RELEASE='51';
+const APP_RELEASE='52';
 // Restore the native iPhone route used in v24-v28. Launch directly on a tap.
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 // This opens the saved conversation; clipboard handoff still requires paste/send.
@@ -457,12 +457,12 @@ async function reconcileItemSync(d,cloudId,status){
   const q=new URLSearchParams({select:'id,data,deleted,updated_at',user_id:'eq.'+session.uid,wardrobe:'eq.'+cloudId,kind:'eq.item',limit:'1000',offset:String(offset)});
   const page=await api('/rest/v1/records?'+q)||[];for(const row of page)remote.set(row.id,row);if(page.length<1000)break;
  }
- const local=new Map((await getAll('items',d)).map(x=>[x.id,x]));
+ const localIds=await reqP(d.transaction('items').objectStore('items').getAllKeys());
  const pendingDeletes=new Set((await getAll('meta',d)).filter(x=>x.kind==='item'&&String(x.id).startsWith('del:')).map(x=>x.key));
  const invalidate=new Set(),acknowledge=new Map();
- for(const id of new Set([...local.keys(),...remote.keys()])){
+ for(const id of new Set([...localIds,...remote.keys()])){
   if(pendingDeletes.has(id))continue;
-  const item=local.get(id),row=remote.get(id),key='item:'+id;
+  const item=await dGet(d,'items',id),row=remote.get(id),key='item:'+id;
   if(!row){if(item)invalidate.add(key);continue;}
   const remoteStamp=row.deleted?(row.data.at||row.data.updatedAt||row.updated_at):STAMP.item(row.data);
   const order=item?compareSyncStamp(STAMP.item(item),remoteStamp):-1;
@@ -478,9 +478,14 @@ async function reconcileItemSync(d,cloudId,status){
   if(item?(!latest||STAMP.item(latest)!==STAMP.item(item)||JSON.stringify(latest.photos)!==JSON.stringify(item.photos)):!!latest)continue;
   if(replacement){await dPut(d,'items',replacement);acknowledge.set(key,STAMP.item(replacement)||'-');}
   else{await dDel(d,'items',id);invalidate.add(key);}
+  if(d===db){
+   const index=items.findIndex(entry=>entry.id===id);
+   if(replacement){if(index<0)items.push(replacement);else items[index]=replacement;}
+   else if(index>=0)items.splice(index,1);
+  }
  }
  const state=await syncState0(d);for(const key of invalidate)delete state.pushed[key];for(const [key,value]of acknowledge)state.pushed[key]=value;await dPut(d,'meta',state);
- if(d===db)items=await getAll('items',d);
+
 }
 const normalPushWardrobe=pushWardrobe;
 pushWardrobe=async function(d,cloudId,status){
