@@ -96,7 +96,8 @@ async function planningPhotoFiles(list,id){
   }
   const file=await canvasFile(c,`Wardrobe-${id}-sheet-${String(sheet).padStart(2,'0')}.jpg`);
   const width=c.width,height=c.height;
-  c.width=c.height=1;
+  // Keep the original canvas alive until JPEG decoding and pixel validation finish.
+  // Releasing it before decode can trigger blank output on memory-constrained devices.
   const url=URL.createObjectURL(file);
   try {
    const image=await loadImg(url);
@@ -107,7 +108,7 @@ async function planningPhotoFiles(list,id){
    if(alpha!==255||Math.max(red,green,blue)>100)throw new Error('Missing sheet header');
   }catch{
    throw new Error('Contact sheet '+sheet+' exported blank or unreadable. Tap Generate to retry.');
-  }finally{URL.revokeObjectURL(url)}
+  }finally{URL.revokeObjectURL(url);c.width=c.height=1}
   files.push(file);manifest.push({sheet,filename:file.name,itemIds:chunk.map(it=>it.id),missingPhotoIds:chunk.filter(it=>!it.photos?.length).map(it=>it.id)});
   }finally{c.width=c.height=1}
  }
@@ -143,14 +144,19 @@ function resumePreparedRequest(id){
  if(editingTrip===id&&!stagedTripPlans.has(id)&&preparedTripIsCurrent(t))copyRequestPanel(t,$('#requestFiles'));
 }
 async function fallbackTripPhotos(t){
- const files=[];
- for(const sheet of t.handoff.photoAttachments||[]){
-  const image=sheet.image?.startsWith('sb:')?await downloadPhoto(sheet.image.slice(3)):sheet.image;
-  if(!image)throw new Error('A saved reference could not be loaded. Tap Generate to rebuild it.');
-  const blob=await dataURLtoBlob(image);
-  files.push(new File([blob],sheet.filename,{type:blob.type}));
+ // Always rebuild fallback sheets from the live, snapshot-matched closet. Cached
+ // handoff JPEGs can be blank even when their metadata and file names are valid.
+ if(!preparedTripIsCurrent(t))throw new Error('Wardrobe references changed. Tap Generate to prepare a fresh trip request.');
+ const current=activeItems();
+ const rebuilt=await planningPhotoFiles(current,t.snapshotId);
+ const expected=t.handoff.photoAttachments||[];
+ if(rebuilt.files.length!==expected.length)throw new Error('Contact sheet count changed. Tap Generate to refresh the trip.');
+ for(let i=0;i<expected.length;i++){
+  const original=expected[i],made=rebuilt.manifest[i];
+  if(original.filename!==made.filename||JSON.stringify(original.itemIds)!==JSON.stringify(made.itemIds))
+   throw new Error('Contact sheet contents changed. Tap Generate to refresh the trip.');
  }
- return files.concat((await handoffFaces()).files);
+ return rebuilt.files.concat((await handoffFaces()).files);
 }
 async function renderCurrentOutfit(){if(!directRenderPack){$('#planMsg').textContent='Wait for private photo access to finish checking.';return}const pack=directRenderPack;try{pack.fresh()}catch(e){$('#planMsg').textContent=e.message;return}try{if(!navigator.clipboard?.writeText)throw new Error('Clipboard is unavailable.');await navigator.clipboard.writeText(pack.prompt);}catch{$('#planMsg').textContent='Automatic copying did not finish. Copy the private request below, then open ChatGPT.';showPrivateRequestCopy(pack.prompt);return}try{pack.fresh();$('#planMsg').textContent='Private request copied. Opening ChatGPT…';saveJourneyView();window.location.assign(chatGPTRoute());}catch(e){$('#planMsg').textContent=e.message;}}
 function showPrivateRequestCopy(text){const out=$('#requestFiles');if(!out.querySelector('[data-manualprivate]'))out.insertAdjacentHTML('beforeend','<div data-manualprivate><p>Copy this private request. It contains private access to this trip; paste it only in your ChatGPT chat.</p><textarea readonly aria-label="Private lookbook request"></textarea><a class="btn" data-manualchat>Open ChatGPT</a></div>');out.querySelector('textarea').value=text;out.querySelector('[data-manualchat]').href=chatGPTRoute();}
